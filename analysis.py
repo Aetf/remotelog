@@ -5,14 +5,13 @@ import os
 import time
 from copy import copy, deepcopy
 from collections import defaultdict
-from operator import itemgetter
 
 import matplotlib as mpl
 import pandas as pd
 import seaborn as sns
 
-stages = ['spout', 'scale', 'fat_features', 'drawer', 'streamer']
-stage2idx = {stages[idx]: idx for idx in range(0, len(stages))}
+stages = ['spout', 'scale', 'fat_features', 'drawer', 'streamer', 'ack']
+stages2idx = {stages[idx]: idx for idx in range(0, len(stages))}
 
 full_stages = []
 for _cur, _nxt in zip(stages[:-1], stages[1:]):
@@ -22,6 +21,17 @@ full_stages.append(stages[-1])
 
 categories = ['waiting'] + full_stages + ['finished', 'failed']
 cat2idx = {categories[idx]: idx for idx in range(0, len(categories))}
+
+
+def prev_stage(stage):
+    """Previous stage"""
+    return stages[stages2idx[stage] - 1]
+
+
+def next_stage(stage):
+    """Next stage"""
+    return stages[stages2idx[stage] + 1]
+
 
 globpattern = None
 def _globpattern():
@@ -47,7 +57,6 @@ def correct_log_type(logs):
             log['stage'] = 'spout'
         elif log['stage'] == 'fetcher':
             log['stage'] = 'spout'
-        log['stage'] = stage2idx[log['stage']]
         log['stamp'] = int(log['stamp'])
         if not log['size'] is None:
             log['size'] = int(log['size'])
@@ -64,15 +73,32 @@ def group_by_frame(logs):
 def group_by(logs, attr):
     """group list by attr"""
     tmp = defaultdict(list)
-    getter = itemgetter(attr)
+    getter = frame_key_getter(attr)
     for log in logs:
         tmp[getter(log)].append(log)
     return list(tmp.values())
 
 
+def frame_key_getter(*args):
+    """Return frame compare key"""
+    def getter(frame):
+        """Inner"""
+        keys = []
+        for k in args:
+            if k == 'stage':
+                if frame['stage'] in stages2idx:
+                    keys.append(stages2idx[frame[k]])
+                else:
+                    keys.append(stages2idx[frame[k]]+0.5)
+            else:
+                keys.append(frame[k])
+        return tuple(keys)
+    return getter
+
+
 def tidy_frame_logs(logs_per_frame, debug=False):
-    """Filter out old entry before retry"""
-    res = sorted(deepcopy(logs_per_frame), key=itemgetter('req', 'stamp', 'stage'))
+    """Fix odd log orders"""
+    res = sorted(deepcopy(logs_per_frame), key=frame_key_getter('req', 'stamp', 'stage'))
     # Fix consecutive entering or leaving entries
     for idx in range(1, len(res)-1):
         if (res[idx]['evt'] == res[idx-1]['evt']
@@ -81,8 +107,8 @@ def tidy_frame_logs(logs_per_frame, debug=False):
             diff = res[idx+1]['stamp'] - res[idx]['stamp']
             if debug or diff > 30:
                 print('WARNING: seq {}: consecutive entering on stage {} and {} with stamp '
-                      'difference {}'.format(res[idx]['seq'], stages[res[idx-1]['stage']],
-                                             stages[res[idx]['stage']],
+                      'difference {}'.format(res[idx]['seq'], res[idx-1]['stage'],
+                                             res[idx]['stage'],
                                              res[idx+1]['stamp'] - res[idx]['stamp']))
             res[idx]['stamp'], res[idx+1]['stamp'] = res[idx+1]['stamp'], res[idx]['stamp']
         elif (res[idx]['evt'] == res[idx+1]['evt']
@@ -91,8 +117,8 @@ def tidy_frame_logs(logs_per_frame, debug=False):
             diff = res[idx+1]['stamp'] - res[idx-1]['stamp']
             if debug or diff > 30:
                 print('WARNING: seq {}: consecutive leaving on stage {} and {} with stamp '
-                      'difference {}'.format(res[idx]['seq'], stages[res[idx]['stage']],
-                                             stages[res[idx+1]['stage']],
+                      'difference {}'.format(res[idx]['seq'], res[idx]['stage'],
+                                             res[idx+1]['stage'],
                                              res[idx+1]['stamp'] - res[idx-1]['stamp']))
             (res[idx-1]['stamp'],
              res[idx]['stamp'],
@@ -100,7 +126,7 @@ def tidy_frame_logs(logs_per_frame, debug=False):
                                      res[idx-1]['stamp'],
                                      res[idx]['stamp'])
 
-    res = sorted(res, key=itemgetter('stamp', 'stage'))
+    res = sorted(res, key=frame_key_getter('stamp', 'stage'))
     return res
 
 
@@ -141,7 +167,7 @@ def extract_frames(tidy_logs):
         retries = group_by(frame_entries, 'req')
         retries.sort(key=lambda trial: trial[0]['req'])
         for trial in retries:
-            trial.sort(key=itemgetter('stamp', 'stage'))
+            trial.sort(key=frame_key_getter('stamp', 'stage'))
             head = []
             for idx in range(0, len(trial)):
                 if trial[idx]['evt'] == 'Failed':
@@ -164,10 +190,10 @@ def check_frame(frame, debug=False):
     """Sanity check a single frame"""
     for trial in frame['retries']:
         in_stage = False
-        last_stage = -1
+        last_stage = None
         for evt, stage_idx, _ in trial:
             if evt == 'Entering' and not in_stage:
-                if last_stage + 1 != stage_idx:
+                if last_stage is not None and next_stage(last_stage) != stage_idx:
                     if debug:
                         print('Non consecutive stage')
                     # Non consecutive stage
@@ -179,22 +205,26 @@ def check_frame(frame, debug=False):
                     # Non consecutive stage entering/leaving
                     if debug:
                         print('Non consecutive stage entering/leaving: last',
-                              stages[last_stage], 'leaving', stages[stage_idx])
+                              last_stage, 'leaving', stage_idx)
                     return False
                 in_stage = False
+            elif evt == 'OpBegin':
+                continue
+            elif evt == 'OpEnd':
+                continue
             else:
                 # Unexpected trial event
                 if debug:
-                    print('Unexpected trial event')
+                    print('Unexpected trial event: ', evt)
                 return False
     return True
 
 
-def sanity_check(frames):
+def sanity_check(frames, debug=False):
     """A quick check of frame data"""
     cnt = 0
     for frame in frames:
-        if not check_frame(frame):
+        if not check_frame(frame, debug):
             print('WARNING: sanity check failed at frame', frame)
             cnt = cnt + 1
     if cnt > 0:
@@ -217,23 +247,38 @@ def compute_latency(frames):
         latencies = defaultdict(list)
         for trial in frame['retries']:
             _, _, last_stamp = trial[0]
+            last_op_stamp = -1
             for evt, stage_idx, stamp in trial[1:]:
                 if evt == 'Entering':
                     # Cross stage latency
                     latency = stamp - last_stamp
-                    key = '{}-{}'.format(stages[stage_idx - 1], stages[stage_idx])
+                    key = '{}-{}'.format(prev_stage(stage_idx), stage_idx)
                     latencies[key].append(latency)
                 elif evt == 'Leaving':
                     # In stage latency
                     latency = stamp - last_stamp
-                    latencies[stages[stage_idx]].append(latency)
-                    if stage_idx == stage2idx['streamer']:
+                    latencies[stage_idx].append(latency)
+                    if stage_idx == 'streamer':
                         # The frame left the last stage, compute total latency
                         latency = stamp - trial[0][2]
                         latencies['total'].append(latency)
-                else:
-                    print('WARNING: Someting wrong with frame', frame, 'Try run sanity check first')
+                elif evt == 'OpBegin':
+                    # cross frameOp latency
+                    latency = stamp - last_op_stamp
+                    key = 'Op:{}-{}'.format(prev_stage(stage_idx), stage_idx)
+                    latencies[key].append(latency)
+                elif evt == 'OpEnd':
+                    # In frameOp latency
+                    latency = stamp - last_op_stamp
+                    key = 'Op:{}'.format(stage_idx)
+                    latencies[key].append(latency)
+                elif evt == 'Ack':
+                    # Last bolt to spout ack
+                    latency = stamp -last_stamp
+                    key = '{}-{}'.format(prev_stage(stage_idx), stage_idx)
+                    latencies[key].append(latency)
                 last_stamp = stamp
+                last_op_stamp = stamp
         if not frame['failed'] is None and 'total' in latencies:
             # The frame failed but left the final stage
             anomaly_cnt = anomaly_cnt + 1
@@ -293,14 +338,14 @@ def compute_fps(tidy_logs, stage='spout', evt='Entering'):
     """Compute fps on spout"""
     # Flatten logs for processing according to stamp
     flaten_logs = [item for sublist in tidy_logs for item in sublist]
-    flaten_logs.sort(key=itemgetter('stamp', 'stage'))
+    flaten_logs.sort(key=frame_key_getter('stamp', 'stage'))
 
     start_time = flaten_logs[0]['stamp']
     curr_time = -1
     curr_cnt = 0
     fps = []
     for log in flaten_logs:
-        if log['evt'] != evt or log['stage'] != stage2idx[stage]:
+        if log['evt'] != evt or log['stage'] != stage:
             continue
         t = int((log['stamp'] - start_time) / 1000)
         if t != curr_time:
@@ -316,7 +361,7 @@ def compute_stage_dist(tidy_logs, normalize=True, step=1000, excludeCat=None):
     """Compute stage distribution per step"""
     # Flatten logs for processing according to stamp
     flaten_logs = [item for sublist in tidy_logs for item in sublist]
-    flaten_logs.sort(key=itemgetter('stamp', 'stage'))
+    flaten_logs.sort(key=frame_key_getter('stamp', 'stage'))
 
     # Variables that must compute first
     frame_cnt = len(tidy_logs)
@@ -349,7 +394,7 @@ def compute_stage_dist(tidy_logs, normalize=True, step=1000, excludeCat=None):
             dist['time'] = t
         seq = log['seq']
         fr = last_stage[seq]
-        cat_idx = cat2idx[stages[log['stage']]]
+        cat_idx = cat2idx[log['stage']]
         if log['evt'] == 'Entering':
             to = cat_idx
         elif log['evt'] == 'Leaving':
@@ -361,13 +406,14 @@ def compute_stage_dist(tidy_logs, normalize=True, step=1000, excludeCat=None):
             #to = cat2idx['failed']
             pass
         else:
-            print('Unknown event at log entry', log)
+            #print('Unknown event at log entry', log)
+            continue
         if fr != -1:
             dist[categories[fr]] = dist[categories[fr]] - 1
         dist[categories[to]] = dist[categories[to]] + 1
         last_stage[seq] = to
 
-    distributions.sort(key=itemgetter('time'))
+    distributions.sort(key=frame_key_getter('time'))
     return distributions
 
 
@@ -382,7 +428,7 @@ def print_frame(frames, seq=None):
         for trial in frame['retries']:
             print('------------------')
             for evt, stage_idx, stamp in trial:
-                print('{:<8} {:^12}: {}'.format(evt, stages[stage_idx], stamp))
+                print('{:<8} {:^12}: {}'.format(evt, stage_idx, stamp))
 
     if isinstance(frames, list):
         for frame in frames:
@@ -395,17 +441,17 @@ def print_frame(frames, seq=None):
 def show_frame(logs, seq):
     """Print log entries for specific frame"""
     single = [log for log in logs if log['seq'] == seq]
-    single = sorted(single, key=itemgetter('stamp'))
+    single = sorted(single, key=frame_key_getter('stamp'))
     for item in single:
         print('Machine: {:9} Seq: {:<5}\t{:<8} {:^12}: {}\tSize: {}'
-              .format(item['machine'], item['seq'], item['evt'], stages[item['stage']],
+              .format(item['machine'], item['seq'], item['evt'], item['stage'],
                       item['stamp'], item['size']))
 
 
 def latency_plot(clean_frames):
     """Plot!"""
     latenciesDf = pd.DataFrame.from_dict([frame['latencies'] for frame in clean_frames])
-    latAx = sns.barplot(data=latenciesDf, order=(full_stages + ['total']), saturation=0.4)
+    latAx = sns.barplot(data=latenciesDf, order=(full_stages[:-2] + ['total']), saturation=0.4)
     latAx.set_yscale('log')
     latAx.set_ylabel('latency (ms)')
     latAx.set_xticklabels(latAx.get_xticklabels(), rotation=30)
@@ -434,17 +480,17 @@ def distribution_plot(tidy_logs, normalize=True, step=200, excludeCat=None):
     distAx = distDf.plot.area(x='time')
     distAx.set_xlabel('Time (x {}ms)'.format(step))
     distAx.set_ylabel('Ratio')
-    distAx.set_ylim([0,1])
+    distAx.set_ylim([0, 1])
     distAx.figure.tight_layout()
     return distAx
 
-def run():
+def run(log_dir=None):
     """Read log and parse"""
     #pttn = re.compile(r'^.+SequenceNr: (?P<seq>\d+)' +
     #                  r' (?P<evt>\w+) (?P<stage>\w+):' +
     #                  r' (?P<stamp>\d+)' +
     #                  r'( \(latency (?P<latency>\d+)\))?$')
-    tidy_logs = collect_log()
+    tidy_logs = collect_log(log_dir)
 
     frames = extract_frames(tidy_logs)
 
