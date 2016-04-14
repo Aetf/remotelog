@@ -6,22 +6,24 @@ from fabric.api import (cd,
                         env,
                         execute,
                         hide,
+                        hosts,
                         open_shell,
                         run,
                         runs_once,
-                        shell_env,
-                        sudo,
                         task,
                        )
 
 env.use_ssh_config = True
 
 @contextlib.contextmanager
-def tmux(session, cwd=None, destroy=False):
+def tmux(session, cwd=None, destroy=False, runner=None):
     """run commands in tmux session"""
+    if runner is None:
+        runner = run
+
     def remote_run(*args, **kwargs):
         """wrapper around fabric run"""
-        return run(shell=False, *args, **kwargs)
+        return runner(shell=False, shell_escape=False, *args, **kwargs)
 
     class tmux_session(object):
         """tmux session object"""
@@ -31,9 +33,11 @@ def tmux(session, cwd=None, destroy=False):
             tmux_cmd = 'tmux'
             self.session = session
             self.cwd = cwd if cwd is not None else ''
+            self.environ = {}
             patterns = {
                 'cmd': ['send-keys', '-t {se}{{wd}}{{pane}}',
                         "'cd {{cwd}}' C-m",
+                        'env Space {{envvar}} Space',
                         "'{{cmd}}' C-m",
                        ],
                 'neww': ['new-window', '-t {se} -n {{name}}'],
@@ -70,9 +74,14 @@ def tmux(session, cwd=None, destroy=False):
             """Run commands in tmux window"""
             window = ':' + window if window is not None else ''
             pane = '.' + pane if window != '' and pane is not None else ''
+            envvar = ' Space '.join(["{}= \"'\"'{}'\"'\"".format(k, v)
+                                     for k, v in self.environ.items()])
+            cwd = self.cwd
+
+            cwd = cwd.replace("'", r"\'")
             cmd = cmd.replace("'", r"\'")
             return remote_run(self.patterns['cmd']
-                              .format(wd=window, pane=pane, cwd=self.cwd, cmd=cmd))
+                              .format(wd=window, pane=pane, envvar=envvar, cwd=cwd, cmd=cmd))
 
         def _new_window(self, name):
             """Run commands in new window"""
@@ -88,6 +97,10 @@ def tmux(session, cwd=None, destroy=False):
             """Select window as current window"""
             with hide('running', 'stdout', 'stderr'):
                 return remote_run(self.patterns['selectw'].format(name=name))
+
+        def _attach(self):
+            """Attach"""
+            return remote_run(self.patterns['attach'])
 
         def run(self, cmd, new_window=None):
             """Run commands in tmux"""
@@ -114,6 +127,35 @@ def tmux(session, cwd=None, destroy=False):
             finally:
                 self.cwd = last_cwd
 
+        @contextlib.contextmanager
+        def env(self, clean_revert=False, **kwargs):
+            """Set environment variables"""
+            previous = {}
+            new = []
+            for key, value in kwargs.items():
+                if key in self.environ:
+                    previous[key] = self.environ[key]
+                else:
+                    new.append(key)
+                self.environ[key] = value
+            try:
+                yield
+            finally:
+                if clean_revert:
+                    for key, value in kwargs.items():
+                        # If the current env value for this key still matches the
+                        # value we set it to beforehand, we are OK to revert it to the
+                        # pre-block value.
+                        if key in self.environ and value == self.environ[key]:
+                            if key in previous:
+                                self.environ[key] = previous[key]
+                            else:
+                                del self.environ[key]
+                else:
+                    self.environ.update(previous)
+                    for key in new:
+                        del self.environ[key]
+
     ts = tmux_session(session, cwd)
     try:
         yield ts
@@ -129,16 +171,19 @@ def host_type():
     #sudo('apt-get update')
     with tmux('test2') as session:
         #session.run('echo I am here')
-        session.run('echo "I am at $PWD"', new_window='MyTest')
+        session.run('echo "I am at $PWD"', new_window='EnvTest')
         with session.cd('/tmp'):
             session.run('echo "I am at $PWD"')
             with session.cd('/home/aetf/Downloads'):
                 session.run('echo "I am at $PWD"')
                 with session.cd('../bin'):
                     session.run('echo "I am at $PWD"')
+                with session.env(ATEST='heiheihei'):
+                    session.run('echo "I am back at $PWD" now, $ATEST')
+            session.run('echo "I am back at $PWD" again, $ATEST')
 
 
-base_dir = '/home/peifeng/VideoDB'
+project_dir = '/home/peifeng/VideoDB'
 work_dir = '/home/peifeng/work'
 runtime_dir = os.path.join(work_dir, 'run')
 
@@ -146,7 +191,7 @@ runtime_dir = os.path.join(work_dir, 'run')
 @task
 def predeploy():
     """Pre deploy"""
-    with cd(base_dir):
+    with cd(project_dir):
         run('git pull')
 
 
@@ -155,25 +200,23 @@ def predeploy():
 def build():
     """Build"""
     execute(predeploy)
-    with cd(base_dir):
+    with cd(project_dir):
         with cd('stormcv'):
             run('./gradlew install')
         with cd('stormcv-deploy'):
             run('mvn package')
 
 
+@hosts('peifeng@clarity25')
 @task
-def start_zk():
-    """Start zookeeper"""
-    pass
-
-@task
-def start_storm():
+def zookeeper(action=None):
     """Bring up storm servers"""
-    with tmux('exp') as session:
-        with shell_env(ZOOCFGDIR=os.path.join(runtime_dir, 'zookeeper', 'conf'),
-                       ZOO_LOG_DIR=os.path.join(runtime_dir, 'zookeeper', 'data')):
-            session.run('/usr/local/zookeeper-3.4.6/bin/zkServer.sh start')
+    if action is None:
+        action = 'start'
+    with tmux('exp') as ts:
+        with ts.env(ZOOCFGDIR=os.path.join(runtime_dir, 'zookeeper', 'conf'),
+                    ZOO_LOG_DIR=os.path.join(runtime_dir, 'zookeeper', 'data')):
+            ts.run('/usr/local/zookeeper-3.4.6/bin/zkServer.sh ' + action)
 
 
 @task
@@ -181,3 +224,11 @@ def run_exp():
     """Deploy"""
     execute(build)
 
+
+@task
+def attach(session_name=None):
+    """Attach to exp session"""
+    if session_name is None:
+        session_name = 'exp'
+    with tmux(session_name, runner=open_shell) as ts:
+        ts.attach()
