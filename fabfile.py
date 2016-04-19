@@ -2,18 +2,40 @@
 """Common tasks to run experiments and collect logs"""
 import contextlib
 import os.path
+import time
 from fabric.api import (cd,
                         env,
                         execute,
                         hide,
                         hosts,
-                        open_shell,
                         run,
                         runs_once,
+                        shell_env,
                         task,
                        )
+from fabric import utils
+from fabric.contrib import files
+from fabric.contrib.project import (rsync_project
+                                   )
 
 env.use_ssh_config = True
+
+def main_host(configuration):
+    """Get main host from configuration"""
+    username = 'peifeng'
+    if configuration is None:
+        return '{}@clarity25'.format(username)
+    else:
+        return '{}@{}'.format(username, configuration)
+
+def host_list(configuration):
+    """Get host list from configuration"""
+    username = 'peifeng'
+    l = ['{}@clarity25', '{}@clarity26']
+    if configuration is None:
+        return [s.format(username) for s in l]
+    else:
+        return [main_host(configuration)]
 
 @contextlib.contextmanager
 def tmux(session, cwd=None, destroy=False, runner=None):
@@ -23,7 +45,7 @@ def tmux(session, cwd=None, destroy=False, runner=None):
 
     def remote_run(*args, **kwargs):
         """wrapper around fabric run"""
-        return runner(shell=False, shell_escape=False, *args, **kwargs)
+        return runner(shell=False, *args, **kwargs)
 
     class tmux_session(object):
         """tmux session object"""
@@ -41,10 +63,10 @@ def tmux(session, cwd=None, destroy=False, runner=None):
                         "'{{cmd}}' C-m",
                        ],
                 'neww': ['new-window', '-t {se} -n {{name}}'],
-                'attach': ['attach-session', ' -t {se}'],
                 'has': ['has-session', '-t {se}'],
                 'new': ['new-session', '-d', '-s {se}'],
                 'kill': ['kill-session', '-Ct {se}'],
+                'killw': ['kill-window', '-t {se}:{{name}}'],
                 'lsw': ['list-windows', '-F \'#W\'', '-t {se}'],
                 'selectw': ['select-window', '-t {se}:{{name}}'],
             }
@@ -70,6 +92,11 @@ def tmux(session, cwd=None, destroy=False, runner=None):
                     return remote_run(self.patterns['kill'])
             return True
 
+        def _kill_window(self, name):
+            """Kill window"""
+            with hide('running', 'stdout', 'stderr'):
+                return remote_run(self.patterns['killw'].format(name=name), quiet=True)
+
         def _run_in_pane(self, cmd, window=None, pane=None):
             """Run commands in tmux window"""
             window = ':' + window if window is not None else ''
@@ -84,8 +111,9 @@ def tmux(session, cwd=None, destroy=False, runner=None):
                               .format(wd=window, pane=pane, envvar=envvar, cwd=cwd, cmd=cmd))
 
         def _new_window(self, name):
-            """Run commands in new window"""
+            """Create a new window"""
             with hide('running', 'stdout', 'stderr'):
+                print('Creating new window', name)
                 return remote_run(self.patterns['neww'].format(name=name))
 
         def _list_windows(self):
@@ -98,10 +126,6 @@ def tmux(session, cwd=None, destroy=False, runner=None):
             with hide('running', 'stdout', 'stderr'):
                 return remote_run(self.patterns['selectw'].format(name=name))
 
-        def _attach(self):
-            """Attach"""
-            return remote_run(self.patterns['attach'])
-
         def run(self, cmd, new_window=None):
             """Run commands in tmux"""
             if new_window is not None:
@@ -109,6 +133,11 @@ def tmux(session, cwd=None, destroy=False, runner=None):
                     self._new_window(new_window)
                 self._select_window(new_window)
             return self._run_in_pane(cmd, window=new_window)
+
+        def kill(self, window=None):
+            """Kill something"""
+            if window is not None:
+                return self._kill_window(window)
 
         def destroy(self):
             """Kill session"""
@@ -189,46 +218,172 @@ runtime_dir = os.path.join(work_dir, 'run')
 
 
 @task
-def predeploy():
-    """Pre deploy"""
+def uptodate():
+    """If the project is up to date"""
     with cd(project_dir):
-        run('git pull')
-
+        run('git remote update')
+        local = run('git rev-parse @')
+        remote = run('git rev-parse @{u}')
+        base = run('git merge-base @ @{u}')
+        if local == remote:
+            return True
+        elif local == base:
+            return False
+        elif remote == base:
+            utils.error('Push project first!!!')
+        else:
+            utils.error('local diverged!!!')
+        return False
 
 @task
 @runs_once
 def build():
     """Build"""
-    execute(predeploy)
+    if uptodate():
+        return
     with cd(project_dir):
+        run('git pull')
         with cd('stormcv'):
             run('./gradlew install')
         with cd('stormcv-deploy'):
             run('mvn package')
 
 
-@hosts('peifeng@clarity25')
 @task
 def zookeeper(action=None):
-    """Bring up storm servers"""
+    """Bring up zookeeper servers"""
+    if action is None:
+        action = 'start'
+    with shell_env(ZOOCFGDIR=os.path.join(runtime_dir, 'zookeeper', 'conf'),
+                   ZOO_LOG_DIR=os.path.join(runtime_dir, 'zookeeper', 'data')):
+        run('/usr/local/zookeeper-3.4.6/bin/zkServer.sh ' + action)
+
+@task
+def storm_nimbus(action=None):
+    """Bring up strom nimbus"""
     if action is None:
         action = 'start'
     with tmux('exp') as ts:
-        with ts.env(ZOOCFGDIR=os.path.join(runtime_dir, 'zookeeper', 'conf'),
-                    ZOO_LOG_DIR=os.path.join(runtime_dir, 'zookeeper', 'data')):
-            ts.run('/usr/local/zookeeper-3.4.6/bin/zkServer.sh ' + action)
+        if action == 'start':
+            ts.run('/home/peifeng/storm-0.10.0/bin/storm nimbus', new_window='nimbus')
+        elif action == 'stop':
+            ts.kill(window='nimbus')
+        else:
+            print('unknown action: {}'.format(action))
 
 
 @task
-def run_exp():
-    """Deploy"""
-    execute(build)
+def storm_supervisor(action=None):
+    """Bring up strom nimbus"""
+    if action is None:
+        action = 'start'
+    with tmux('exp') as ts:
+        if action == 'start':
+            ts.run('/home/peifeng/storm-0.10.0/bin/storm supervisor', new_window='supervisor')
+        elif action == 'stop':
+            ts.kill(window='supervisor')
+        else:
+            print('unknown action: {}'.format(action))
+
+@task
+def storm_ui(action=None):
+    """Bring up storm ui"""
+    if action is None:
+        action = 'start'
+    with tmux('exp') as ts:
+        if action == 'start':
+            ts.run('/home/peifeng/storm-0.10.0/bin/storm ui', new_window='ui')
+        elif action == 'stop':
+            ts.kill(window='ui')
+        else:
+            print('unknown action: {}'.format(action))
 
 
 @task
-def attach(session_name=None):
-    """Attach to exp session"""
-    if session_name is None:
-        session_name = 'exp'
-    with tmux(session_name, runner=open_shell) as ts:
-        ts.attach()
+def storm_submit(*args):
+    """Submit jar to storm"""
+    cmd = [
+        '/home/peifeng/storm-0.10.0/bin/storm',
+        'jar',
+        '/home/peifeng/work/stormcv-deploy-0.0.1-SNAPSHOT-jar-with-dependencies.jar',
+        'nl.tno.stormcv.deploy.SpoutOnly',
+        '/home/peifeng/work/Breaking_Dawn_Part2_trailer.mp4',
+    ]
+    cmd += ['--'+ arg for arg in args]
+    run(' '.join(cmd))
+
+
+@hosts('localhost')
+@task
+def storm(action=None, configuration=None):
+    """Bring up storm cluster"""
+    execute(zookeeper, action=action, host=main_host(configuration))
+    execute(storm_nimbus, action=action, host=main_host(configuration))
+    execute(storm_supervisor, action=action, hosts=host_list(configuration))
+    execute(storm_ui, action=action, hosts=main_host(configuration))
+
+
+@task
+def fetch_log():
+    """Fetch logs from server"""
+    shorthost = env.host.replace('.eecs.umich.edu', '')
+
+    log_dir = os.path.join(time.strftime("archive/%Y-%-m-%d/"), '{}', shorthost)
+
+    num = 1
+    while os.path.exists(log_dir.format(num)):
+        num += 1
+    log_dir = log_dir.format(num)
+
+    os.makedirs(log_dir, exist_ok=True)
+
+    rsync_project(remote_dir='/home/peifeng/storm-0.10.0/logs/*worker*.log*',
+                  local_dir=log_dir, upload=False)
+    rsync_project(remote_dir='/home/peifeng/storm-0.10.0/logs/log.cpu',
+                  local_dir=log_dir, upload=False)
+
+
+@task
+def clean_log():
+    """Clean logs from server"""
+    cmd = [
+        'rm',
+        '-f',
+        '/home/peifeng/storm-0.10.0/logs/*worker*.log*',
+        '/home/peifeng/storm-0.10.0/logs/log.cpu'
+    ]
+    run(' '.join(cmd))
+
+
+@task
+def cpu_monitor(action=None):
+    """Start/Stop cpu_monitor"""
+    if action is None:
+        action = 'start'
+    with tmux('exp') as ts:
+        if action == 'start':
+            ts.run('python /home/peifeng/work/accounting.py', new_window='cpu')
+        elif action == 'stop':
+            ts.kill(window='cpu')
+        else:
+            print('unknown action: {}'.format(action))
+
+
+@task
+def run_exp(configuration=None, *args):
+    """Run experiment"""
+    execute(build, host=main_host(configuration))
+
+    execute(storm, action='stop', configuration=configuration)
+    execute(cpu_monitor, action='stop', hosts=host_list(configuration))
+    execute(clean_log, host=main_host(configuration))
+
+    execute(storm, action='start', configuration=configuration)
+    execute(cpu_monitor, action='start', hosts=host_list(configuration))
+
+    for arg in args:
+        files.append('params.txt', '--' + arg)
+
+    execute(storm_submit, host=main_host(configuration), *args)
+
+    #execute(fetch_log, host=main_host)
