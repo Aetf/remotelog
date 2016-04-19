@@ -1,6 +1,7 @@
 # [SublimeLinter pylint-disable:not-context-manager ]
 """Common tasks to run experiments and collect logs"""
 import contextlib
+import pickle
 import os.path
 import time
 from fabric.api import (cd,
@@ -212,6 +213,7 @@ def host_type():
             session.run('echo "I am back at $PWD" again, $ATEST')
 
 
+saved_params_file = 'saved_params.pickle'
 project_dir = '/home/peifeng/VideoDB'
 work_dir = '/home/peifeng/work'
 runtime_dir = os.path.join(work_dir, 'run')
@@ -327,7 +329,6 @@ def storm(action=None, configuration=None):
 def fetch_log():
     """Fetch logs from server"""
     shorthost = env.host.replace('.eecs.umich.edu', '')
-
     log_dir = os.path.join(time.strftime("archive/%Y-%-m-%d/"), '{}', shorthost)
 
     num = 1
@@ -341,6 +342,23 @@ def fetch_log():
                   local_dir=log_dir, upload=False)
     rsync_project(remote_dir='/home/peifeng/storm-0.10.0/logs/log.cpu',
                   local_dir=log_dir, upload=False)
+
+    if os.path.exists(saved_params_file):
+        with open(saved_params_file, 'rb') as f:
+            saved_params = pickle.load(f)
+    else:
+        saved_params = []
+    if len(saved_params) == 0:
+        utils.warn('Saved params not found')
+        params = []
+    else:
+        params = saved_params.pop()
+    with open(saved_params_file, 'wb') as f:
+        pickle.dump(saved_params)
+    with open(os.path.join(log_dir, 'params.txt'), 'w') as f:
+        for arg in params:
+            print(arg, file=f)
+
 
 
 @task
@@ -368,22 +386,33 @@ def cpu_monitor(action=None):
         else:
             print('unknown action: {}'.format(action))
 
+@task
+def kill_exp(configuration):
+    """Kill running experiment"""
+    execute(storm, action='stop', configuration=configuration)
+    execute(cpu_monitor, action='stop', hosts=host_list(configuration))
+
 
 @task
 def run_exp(configuration=None, *args):
     """Run experiment"""
+    if os.path.exists(saved_params_file):
+        with open(saved_params_file, 'rb') as f:
+            saved_params = pickle.load(f)
+    else:
+        saved_params = []
+    saved_params.append(args)
+
+    execute(kill_exp, configuration=configuration)
+    execute(clean_log, host=main_host(configuration))
+
     execute(build, host=main_host(configuration))
 
-    execute(storm, action='stop', configuration=configuration)
-    execute(cpu_monitor, action='stop', hosts=host_list(configuration))
-    execute(clean_log, host=main_host(configuration))
 
     execute(storm, action='start', configuration=configuration)
     execute(cpu_monitor, action='start', hosts=host_list(configuration))
 
-    for arg in args:
-        files.append('params.txt', '--' + arg)
-
     execute(storm_submit, host=main_host(configuration), *args)
 
-    #execute(fetch_log, host=main_host)
+    with open(saved_params_file, 'wb') as f:
+        pickle.dump(saved_params, f)
