@@ -354,11 +354,10 @@ def fetch_log():
     else:
         params = saved_params.pop()
     with open(saved_params_file, 'wb') as f:
-        pickle.dump(saved_params)
+        pickle.dump(saved_params, f)
     with open(os.path.join(log_dir, 'params.txt'), 'w') as f:
         for arg in params:
             print(arg, file=f)
-
 
 
 @task
