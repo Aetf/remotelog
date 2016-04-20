@@ -212,6 +212,8 @@ def check_frame(frame, debug=False):
                 continue
             elif evt == 'OpEnd':
                 continue
+            elif evt == 'Ack':
+                continue
             else:
                 # Unexpected trial event
                 if debug:
@@ -446,6 +448,23 @@ def show_frame(logs, seq):
         print('Machine: {:9} Seq: {:<5}\t{:<8} {:^12}: {}\tSize: {}'
               .format(item['machine'], item['seq'], item['evt'], item['stage'],
                       item['stamp'], item['size']))
+
+
+def fps_plot(tidy_logs):
+    """Plot!"""
+    entering_queue = compute_fps(tidy_logs, stage='spout', evt='Entering')
+    leaving_queue = compute_fps(tidy_logs, stage='spout', evt='Leaving')
+    ack = compute_fps(tidy_logs, stage='ack', evt='Ack')
+
+    fpses = pd.DataFrame({
+        'Entering Spout': entering_queue,
+        'Leaving Spout': leaving_queue,
+        'Ack': ack
+    })
+    thePlot = fpses.plot()
+    thePlot.set_ylabel('Frame per second')
+    thePlot.set_xlabel('time (s)')
+    return thePlot
 
 
 def latency_plot(clean_frames):
