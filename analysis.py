@@ -38,7 +38,7 @@ def _globpattern():
     """Return the glob pattern"""
     if not globpattern is None:
         return globpattern
-    return time.strftime("archive/%Y-%-m-%d/")
+    return time.strftime("archive/%Y-%-m-%d/1")
 
 
 def read_log(filename, pattern):
@@ -130,6 +130,39 @@ def tidy_frame_logs(logs_per_frame, debug=False):
     return res
 
 
+def load_cpu(filename):
+    """Load cpu utilization data"""
+    cpu = []
+    record = None
+    start = None
+    pttn = re.compile(r'cpu(?P<cpu>\d*)\s(?P<val>[\d.]+)')
+    with open(filename) as f:
+        for line in f.readlines():
+            if line.startswith('Timestamp'):
+                record = {}
+                stamp = int(line.split()[1])
+                if start is None:
+                    start = stamp
+                record['timestamp'] = (stamp - start) / 1000
+            elif line.startswith('---'):
+                if record is None:
+                    print('WARNING: malformated cpu log: "{}"'.format(line))
+                    continue
+                cpu.append(record)
+            else:
+                m = pttn.match(line)
+                if m is None or record is None:
+                    print('WARNING: malformated cpu log: "{}"'.format(line))
+                    continue
+                cpuid = m.groupdict()['cpu']
+                val = float(m.groupdict()['val'])
+                if cpuid == '':
+                    record['average'] = val
+                else:
+                    record[int(cpuid)] = val
+    return cpu
+
+
 def collect_log(log_dir=None):
     """Collect log from files"""
     pttn = re.compile(r'^.+RequestID: (?P<req>[0-9-]+) StreamID: (?P<id>[\w.]+)'
@@ -138,6 +171,7 @@ def collect_log(log_dir=None):
                       r' (?P<stamp>\d+)'
                       r'( Size: (?P<size>\d+))?$')
     logs = []
+    cpus = {}
     if log_dir is None:
         log_dir = _globpattern()
     for machine in next(os.walk(log_dir))[1]:
@@ -150,9 +184,14 @@ def collect_log(log_dir=None):
             item['machine'] = machine
         logs = logs + tmp
 
+        cpu_log = os.path.join(log_dir, machine, 'log.cpu')
+        print('Collect cpu log from', cpu_log)
+        cpus[machine] = load_cpu(cpu_log)
+
     correct_log_type(logs)
     tidy_logs = [tidy_frame_logs(per_frame) for per_frame in group_by_frame(logs)]
-    return tidy_logs
+
+    return tidy_logs, cpus
 
 
 def extract_frames(tidy_logs):
@@ -172,7 +211,6 @@ def extract_frames(tidy_logs):
             for idx in range(0, len(trial)):
                 if trial[idx]['evt'] == 'Failed':
                     frame['failed'] = trial[idx]['stamp']
-                    continue
                 evt = trial[idx]['evt']
                 if evt == 'Retry':
                     evt = 'Leaving'
@@ -212,7 +250,7 @@ def check_frame(frame, debug=False):
                 continue
             elif evt == 'OpEnd':
                 continue
-            elif evt == 'Ack':
+            elif evt == 'Ack' or evt == 'Failed':
                 continue
             else:
                 # Unexpected trial event
@@ -276,7 +314,7 @@ def compute_latency(frames):
                     latencies[key].append(latency)
                 elif evt == 'Ack':
                     # Last bolt to spout ack
-                    latency = stamp -last_stamp
+                    latency = stamp - last_stamp
                     key = '{}-{}'.format(prev_stage(stage_idx), stage_idx)
                     latencies[key].append(latency)
                 last_stamp = stamp
@@ -347,15 +385,14 @@ def compute_fps(tidy_logs, stage='spout', evt='Entering'):
     curr_cnt = 0
     fps = []
     for log in flaten_logs:
-        if log['evt'] != evt or log['stage'] != stage:
-            continue
         t = int((log['stamp'] - start_time) / 1000)
         if t != curr_time:
             # Moving to next step, commit current fps
             curr_time = t
             fps.append(curr_cnt)
             curr_cnt = 0
-        curr_cnt = curr_cnt + 1
+        if log['evt'] == evt and log['stage'] == stage:
+            curr_cnt = curr_cnt + 1
     return fps
 
 
@@ -455,15 +492,38 @@ def fps_plot(tidy_logs):
     entering_queue = compute_fps(tidy_logs, stage='spout', evt='Entering')
     leaving_queue = compute_fps(tidy_logs, stage='spout', evt='Leaving')
     ack = compute_fps(tidy_logs, stage='ack', evt='Ack')
+    failed = compute_fps(tidy_logs, stage='spout', evt='Failed')
 
     fpses = pd.DataFrame({
         'Entering Spout': entering_queue,
         'Leaving Spout': leaving_queue,
-        'Ack': ack
+        'Ack': ack,
+        'Failed': failed
     })
     thePlot = fpses.plot()
     thePlot.set_ylabel('Frame per second')
-    thePlot.set_xlabel('time (s)')
+    thePlot.set_xlabel('Time (s)')
+    thePlot.figure.tight_layout()
+    return thePlot
+
+
+def cpu_plot(cpu):
+    """Plot!"""
+    df = pd.DataFrame.from_dict(cpu)
+    thePlot = df.plot(x='timestamp', y='average')
+    thePlot.set_xlabel('Time (s)')
+    thePlot.set_ylabel('CPU utilization (%)')
+    thePlot.figure.tight_layout()
+    return thePlot
+
+
+def cdf_plot(clean_frames):
+    """Plot!"""
+    ser = pd.Series([frame['latencies']['total'] for frame in clean_frames])
+    thePlot = ser.hist(cumulative=True, histtype='step', bins=2000)
+    thePlot.set_xlabel('Latency (ms)')
+    thePlot.set_ylabel('Frame count')
+    thePlot.figure.tight_layout()
     return thePlot
 
 
@@ -472,7 +532,7 @@ def latency_plot(clean_frames):
     latenciesDf = pd.DataFrame.from_dict([frame['latencies'] for frame in clean_frames])
     latAx = sns.barplot(data=latenciesDf, order=(full_stages[:-2] + ['total']), saturation=0.4)
     latAx.set_yscale('log')
-    latAx.set_ylabel('latency (ms)')
+    latAx.set_ylabel('Latency (ms)')
     latAx.set_xticklabels(latAx.get_xticklabels(), rotation=30)
     for p in latAx.patches:
         value = '{:.2f}'.format(p.get_height())
@@ -509,7 +569,7 @@ def run(log_dir=None):
     #                  r' (?P<evt>\w+) (?P<stage>\w+):' +
     #                  r' (?P<stamp>\d+)' +
     #                  r'( \(latency (?P<latency>\d+)\))?$')
-    tidy_logs = collect_log(log_dir)
+    tidy_logs, cpus = collect_log(log_dir)
 
     frames = extract_frames(tidy_logs)
 
@@ -525,4 +585,4 @@ def run(log_dir=None):
     sns.plt.ion()
     sns.set_style('whitegrid')
 
-    return tidy_logs, frames, clean_frames, distributions
+    return tidy_logs, frames, clean_frames, distributions, cpus
