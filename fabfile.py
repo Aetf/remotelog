@@ -11,11 +11,11 @@ from fabric.api import (cd,
                         hosts,
                         run,
                         runs_once,
+                        settings,
                         shell_env,
                         task,
                        )
 from fabric import utils
-from fabric.contrib import files
 from fabric.contrib.project import (rsync_project
                                    )
 
@@ -220,9 +220,11 @@ runtime_dir = os.path.join(work_dir, 'run')
 
 
 @task
-def uptodate():
+def uptodate(proj=None):
     """If the project is up to date"""
-    with cd(project_dir):
+    if proj is None:
+        proj = project_dir
+    with cd(proj):
         run('git remote update')
         local = run('git rev-parse @')
         remote = run('git rev-parse @{u}')
@@ -302,13 +304,13 @@ def storm_ui(action=None):
 
 
 @task
-def storm_submit(*args):
+def storm_submit(topology, *args):
     """Submit jar to storm"""
     cmd = [
         '/home/peifeng/storm-0.10.0/bin/storm',
         'jar',
         '/home/peifeng/work/stormcv-deploy-0.0.1-SNAPSHOT-jar-with-dependencies.jar',
-        'nl.tno.stormcv.deploy.SpoutOnly',
+        topology,
         '/home/peifeng/work/Breaking_Dawn_Part2_trailer.mp4',
     ]
     cmd += ['--'+ arg for arg in args]
@@ -328,36 +330,41 @@ def storm(action=None, configuration=None):
 @task
 def fetch_log():
     """Fetch logs from server"""
+    log_dir = os.path.join(time.strftime("archive/%Y-%-m-%d/"), '{}')
     shorthost = env.host.replace('.eecs.umich.edu', '')
-    log_dir = os.path.join(time.strftime("archive/%Y-%-m-%d/"), '{}', shorthost)
+    per_machine_dir = os.path.join(log_dir, shorthost)
+
 
     num = 1
-    while os.path.exists(log_dir.format(num)):
+    while os.path.exists(per_machine_dir.format(num)):
         num += 1
+    per_machine_dir = per_machine_dir.format(num)
     log_dir = log_dir.format(num)
 
     os.makedirs(log_dir, exist_ok=True)
 
     rsync_project(remote_dir='/home/peifeng/storm-0.10.0/logs/*worker*.log*',
-                  local_dir=log_dir, upload=False)
+                  local_dir=per_machine_dir, upload=False)
     rsync_project(remote_dir='/home/peifeng/storm-0.10.0/logs/log.cpu',
-                  local_dir=log_dir, upload=False)
+                  local_dir=per_machine_dir, upload=False)
 
     if os.path.exists(saved_params_file):
         with open(saved_params_file, 'rb') as f:
             saved_params = pickle.load(f)
     else:
         saved_params = []
+        print('WARNING: Saved params not found')
     if len(saved_params) == 0:
-        utils.warn('Saved params not found')
+        print('WARNING: Saved params is empty')
         params = []
     else:
         params = saved_params.pop()
     with open(saved_params_file, 'wb') as f:
         pickle.dump(saved_params, f)
     with open(os.path.join(log_dir, 'params.txt'), 'w') as f:
-        for arg in params:
-            print(arg, file=f)
+        print(params['topo'], file=f)
+        for arg in params['args']:
+            print('--' + arg, file=f)
 
 
 @task
@@ -393,14 +400,25 @@ def kill_exp(configuration):
 
 
 @task
-def run_exp(configuration=None, *args):
+def run_exp(configuration=None, topology=None, *args):
     """Run experiment"""
+
+    #with settings(hosts=['localhost']):
+    #    if not uptodate('/home/aetf/develop/vcs/VideoDB'):
+    #        utils.error('Your working copy is not clean, which cannot be fetched by remote serves')
+    if topology is None:
+        topology = 'nl.tno.stormcv.deploy.SpoutOnly'
+    else:
+        if not topology.startswith('nl'):
+            topology = 'nl.tno.stormcv.deploy.' + topology
+
     if os.path.exists(saved_params_file):
         with open(saved_params_file, 'rb') as f:
             saved_params = pickle.load(f)
     else:
         saved_params = []
-    saved_params.append(args)
+    print('Saving args: ', args)
+    saved_params.append({'topo': topology, 'args': args})
 
     execute(kill_exp, configuration=configuration)
     execute(clean_log, host=main_host(configuration))
@@ -411,7 +429,7 @@ def run_exp(configuration=None, *args):
     execute(storm, action='start', configuration=configuration)
     execute(cpu_monitor, action='start', hosts=host_list(configuration))
 
-    execute(storm_submit, host=main_host(configuration), *args)
+    execute(storm_submit, topology, *args, host=main_host(configuration))
 
     with open(saved_params_file, 'wb') as f:
         pickle.dump(saved_params, f)
