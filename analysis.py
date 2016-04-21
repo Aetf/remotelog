@@ -62,6 +62,10 @@ def correct_log_type(logs):
             log['size'] = int(log['size'])
         else:
             log['size'] = 0
+    # Normalize time stamp
+    start_time = min([l['stamp'] for l in logs])
+    for l in logs:
+        l['stamp'] -= start_time
     return logs
 
 
@@ -374,25 +378,26 @@ def normalizeDict(d, excludeKeys=None):
     return d
 
 
-def compute_fps(tidy_logs, stage='spout', evt='Entering'):
+def compute_fps(tidy_logs, stage='spout', evt='Entering', step=1000):
     """Compute fps on spout"""
     # Flatten logs for processing according to stamp
     flaten_logs = [item for sublist in tidy_logs for item in sublist]
     flaten_logs.sort(key=frame_key_getter('stamp', 'stage'))
 
     start_time = flaten_logs[0]['stamp']
-    curr_time = -1
+    curr_bin = -1
     curr_cnt = 0
     fps = []
     for log in flaten_logs:
-        t = int((log['stamp'] - start_time) / 1000)
-        if t != curr_time:
+        t = int((log['stamp'] - start_time) / step)
+        if t != curr_bin:
             # Moving to next step, commit current fps
-            curr_time = t
-            fps.append(curr_cnt)
+            curr_bin = t
+            fps.append(curr_cnt / step * 1000)
             curr_cnt = 0
         if log['evt'] == evt and log['stage'] == stage:
             curr_cnt = curr_cnt + 1
+    fps.append(curr_cnt / step * 1000)
     return fps
 
 
@@ -487,20 +492,21 @@ def show_frame(logs, seq):
                       item['stamp'], item['size']))
 
 
-def fps_plot(tidy_logs):
+def fps_plot(tidy_logs, step=1000):
     """Plot!"""
-    entering_queue = compute_fps(tidy_logs, stage='spout', evt='Entering')
-    leaving_queue = compute_fps(tidy_logs, stage='spout', evt='Leaving')
-    ack = compute_fps(tidy_logs, stage='ack', evt='Ack')
-    failed = compute_fps(tidy_logs, stage='spout', evt='Failed')
+    entering_queue = compute_fps(tidy_logs, stage='spout', evt='Entering', step=step)
+    leaving_queue = compute_fps(tidy_logs, stage='spout', evt='Leaving', step=step)
+    ack = compute_fps(tidy_logs, stage='ack', evt='Ack', step=step)
+    failed = compute_fps(tidy_logs, stage='spout', evt='Failed', step=step)
 
     fpses = pd.DataFrame({
         'Entering Spout': entering_queue,
         'Leaving Spout': leaving_queue,
         'Ack': ack,
-        'Failed': failed
+        'Failed': failed,
+        'time': [i * step / 1000 for i in range(0, len(entering_queue))]
     })
-    thePlot = fpses.plot()
+    thePlot = fpses.plot(x='time')
     thePlot.set_ylabel('Frame per second')
     thePlot.set_xlabel('Time (s)')
     thePlot.figure.tight_layout()
@@ -523,6 +529,16 @@ def cdf_plot(clean_frames):
     thePlot = ser.hist(cumulative=True, histtype='step', bins=2000)
     thePlot.set_xlabel('Latency (ms)')
     thePlot.set_ylabel('Frame count')
+    thePlot.figure.tight_layout()
+    return thePlot
+
+
+def time_latency_plot(clean_frames, stage='total'):
+    """Plot!"""
+    ser = pd.Series([frame['latencies'][stage] for frame in clean_frames])
+    thePlot = ser.plot()
+    thePlot.set_xlabel('SequenceNr')
+    thePlot.set_ylabel('Latency (ms)')
     thePlot.figure.tight_layout()
     return thePlot
 
@@ -562,6 +578,25 @@ def distribution_plot(tidy_logs, normalize=True, step=200, excludeCat=None):
     distAx.set_ylim([0, 1])
     distAx.figure.tight_layout()
     return distAx
+
+
+def start_dist_of_failed(clean_frames):
+    """Plot!"""
+    failed = [(int(f['failed']/1000), int(f['retries'][0][0][2]))
+              for f in clean_frames if f['failed'] is not None]
+
+    failed_at = []
+    for t in range(0, max(failed)[0]):
+        l = len([f for f, _ in failed if f >= t and f < (t+1)])
+        if l > 0:
+            print('{}: {}'.format(t, l))
+            failed_at.append(t)
+    df = pd.DataFrame({
+        'failed={}'.format(at): pd.Series([s for f, s in failed if f == at])
+        for at in failed_at
+    })
+    thePlot = df.hist(bins=1000)
+    return thePlot
 
 def run(log_dir=None):
     """Read log and parse"""
