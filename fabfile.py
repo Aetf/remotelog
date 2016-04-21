@@ -21,6 +21,12 @@ from fabric.contrib.project import (rsync_project
 
 env.use_ssh_config = True
 
+saved_params_file = 'saved_params.pickle'
+project_dir = '/home/peifeng/VideoDB'
+work_dir = '/home/peifeng/work'
+runtime_dir = os.path.join(work_dir, 'run')
+
+
 def main_host(configuration):
     """Get main host from configuration"""
     username = 'peifeng'
@@ -195,40 +201,16 @@ def tmux(session, cwd=None, destroy=False, runner=None):
 
 
 @task
-def host_type():
-    """Run uname on remote hosts"""
-    run('uname -s')
-    #sudo('apt-get update')
-    with tmux('test2') as session:
-        #session.run('echo I am here')
-        session.run('echo "I am at $PWD"', new_window='EnvTest')
-        with session.cd('/tmp'):
-            session.run('echo "I am at $PWD"')
-            with session.cd('/home/aetf/Downloads'):
-                session.run('echo "I am at $PWD"')
-                with session.cd('../bin'):
-                    session.run('echo "I am at $PWD"')
-                with session.env(ATEST='heiheihei'):
-                    session.run('echo "I am back at $PWD" now, $ATEST')
-            session.run('echo "I am back at $PWD" again, $ATEST')
-
-
-saved_params_file = 'saved_params.pickle'
-project_dir = '/home/peifeng/VideoDB'
-work_dir = '/home/peifeng/work'
-runtime_dir = os.path.join(work_dir, 'run')
-
-
-@task
 def uptodate(proj=None):
     """If the project is up to date"""
     if proj is None:
         proj = project_dir
     with cd(proj):
         run('git remote update')
-        local = run('git rev-parse @')
-        remote = run('git rev-parse @{u}')
-        base = run('git merge-base @ @{u}')
+        with hide('running', 'stdout', 'stderr'):
+            local = run('git rev-parse @')
+            remote = run('git rev-parse @{u}')
+            base = run('git merge-base @ @{u}')
         if local == remote:
             return True
         elif local == base:
@@ -403,9 +385,10 @@ def kill_exp(configuration):
 def run_exp(configuration=None, topology=None, *args):
     """Run experiment"""
 
-    #with settings(hosts=['localhost']):
-    #    if not uptodate('/home/aetf/develop/vcs/VideoDB'):
-    #        utils.error('Your working copy is not clean, which cannot be fetched by remote serves')
+    if not execute(uptodate, '/home/aetf/develop/vcs/VideoDB', host='localhost')['localhost']:
+        utils.error('Your working copy is not clean, which cannot be fetched by remote serves')
+        return
+
     if topology is None:
         topology = 'nl.tno.stormcv.deploy.SpoutOnly'
     else:
