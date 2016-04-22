@@ -100,6 +100,11 @@ def frame_key_getter(*args):
     return getter
 
 
+def flattened(l):
+    """Flatten a list of list"""
+    return [item for sublist in l for item in sublist]
+
+
 def tidy_frame_logs(logs_per_frame, debug=False):
     """Fix odd log orders"""
     res = sorted(deepcopy(logs_per_frame), key=frame_key_getter('req', 'stamp', 'stage'))
@@ -381,7 +386,7 @@ def normalizeDict(d, excludeKeys=None):
 def compute_fps(tidy_logs, stage='spout', evt='Entering', step=1000):
     """Compute fps on spout"""
     # Flatten logs for processing according to stamp
-    flaten_logs = [item for sublist in tidy_logs for item in sublist]
+    flaten_logs = flattened(tidy_logs)
     flaten_logs.sort(key=frame_key_getter('stamp', 'stage'))
 
     start_time = flaten_logs[0]['stamp']
@@ -535,6 +540,7 @@ def cdf_plot(clean_frames):
 
 def time_latency_plot(clean_frames, stage='total'):
     """Plot!"""
+    clean_frames.sort(key=frame_key_getter('seq'))
     ser = pd.Series([frame['latencies'][stage] for frame in clean_frames])
     thePlot = ser.plot()
     thePlot.set_xlabel('SequenceNr')
@@ -582,7 +588,7 @@ def distribution_plot(tidy_logs, normalize=True, step=200, excludeCat=None):
 
 def start_dist_of_failed(clean_frames):
     """Plot!"""
-    failed = [(int(f['failed']/1000), int(f['retries'][0][0][2]))
+    failed = [(int(f['failed']/1000), int(f['retries'][0][0][2]/1000))
               for f in clean_frames if f['failed'] is not None]
 
     failed_at = []
@@ -591,11 +597,14 @@ def start_dist_of_failed(clean_frames):
         if l > 0:
             print('{}: {}'.format(t, l))
             failed_at.append(t)
-    df = pd.DataFrame({
-        'failed={}'.format(at): pd.Series([s for f, s in failed if f == at])
-        for at in failed_at
-    })
-    thePlot = df.hist(bins=1000)
+
+    d = [[s for f, s in failed if f == at] for at in failed_at]
+    fd = flattened(d)
+    minimum, maximum = min(fd), max(fd)
+    sns.plt.hist(d, bins=[i - 0.5 for i in range(minimum, maximum + 1)], stacked=True,
+                 label=['failed at {}'.format(at) for at in failed_at])
+    thePlot = sns.plt.gca()
+    thePlot.legend()
     return thePlot
 
 def run(log_dir=None):
