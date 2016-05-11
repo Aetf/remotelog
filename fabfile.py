@@ -13,6 +13,7 @@ from fabric.api import (cd,
                         runs_once,
                         settings,
                         shell_env,
+                        sudo,
                         task,
                        )
 from fabric import utils
@@ -373,6 +374,20 @@ def cpu_monitor(action=None):
             ts.kill(window='cpu')
         else:
             print('unknown action: {}'.format(action))
+
+
+@task
+def limit_cpu(number=32):
+    """Limit cpu cores to use"""
+    number = int(number)
+    number = max(1, min(32, number))
+    cmdptrn = 'tee /sys/devices/system/cpu/cpu{}/online <<EOF\n{}\nEOF'
+    with hide('running', 'stdout', 'stderr'):
+        for i in range(1, number):
+            sudo(cmdptrn.format(i, 1))
+        for i in range(number, 32):
+            sudo(cmdptrn.format(i, 0))
+
 
 @task
 def kill_exp(configuration):
