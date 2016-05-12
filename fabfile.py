@@ -224,9 +224,10 @@ def uptodate(proj=None):
 
 @task
 @runs_once
-def build():
+def build(force=None):
     """Build"""
-    if uptodate():
+    force = force == 'True'
+    if not force and uptodate():
         return
     with cd(project_dir):
         run('git pull')
@@ -289,12 +290,23 @@ def storm_ui(action=None):
 @task
 def storm_submit(topology, *args):
     """Submit jar to storm"""
+    files = '/home/peifeng/work/Breaking_Dawn_Part2_trailer.mp4'
+    for arg in args:
+        if arg.startswith('fetcher'):
+            fetcher = arg.split('=')[1]
+            if fetcher == 'image':
+                files = '/home/peifeng/work/frame.1080x1920.png'
+            elif fetcher == 'video':
+                pass
+            else:
+                utils.error('unsupported fetcher')
+
     cmd = [
         '/home/peifeng/storm-0.10.0/bin/storm',
         'jar',
         '/home/peifeng/work/stormcv-deploy-0.0.1-SNAPSHOT-jar-with-dependencies.jar',
         topology,
-        '/home/peifeng/work/Breaking_Dawn_Part2_trailer.mp4',
+        files,
     ]
     cmd += ['--'+ arg for arg in args]
     run(' '.join(cmd))
