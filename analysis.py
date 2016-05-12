@@ -93,7 +93,7 @@ def frame_key_getter(*args):
                 if frame['stage'] in stages2idx:
                     keys.append(stages2idx[frame[k]])
                 else:
-                    keys.append(stages2idx[frame[k]]+0.5)
+                    keys.append(stages2idx['fat_features']+0.5)
             else:
                 keys.append(frame[k])
         return tuple(keys)
@@ -174,9 +174,9 @@ def load_cpu(filename):
 
 def collect_log(log_dir=None):
     """Collect log from files"""
-    pttn = re.compile(r'^.+RequestID: (?P<req>[0-9-]+) StreamID: (?P<id>[\w.]+)'
+    pttn = re.compile(r'^.+RequestID: (?P<req>[0-9-]+) StreamID: (?P<id>[^ ]+)'
                       r' SequenceNr: (?P<seq>\d+)'
-                      r' (?P<evt>\w+) (?P<stage>\w+):'
+                      r' (?P<evt>\w+) (?P<stage>[\w.]+):'
                       r' (?P<stamp>\d+)'
                       r'( Size: (?P<size>\d+))?$')
     logs = []
@@ -303,6 +303,7 @@ def compute_latency(frames):
                     latency = stamp - last_stamp
                     key = '{}-{}'.format(prev_stage(stage_idx), stage_idx)
                     latencies[key].append(latency)
+                    last_stamp = stamp
                 elif evt == 'Leaving':
                     # In stage latency
                     latency = stamp - last_stamp
@@ -311,23 +312,21 @@ def compute_latency(frames):
                         # The frame left the last stage, compute total latency
                         latency = stamp - trial[0][2]
                         latencies['total'].append(latency)
+                    last_stamp = stamp
                 elif evt == 'OpBegin':
-                    # cross frameOp latency
-                    latency = stamp - last_op_stamp
-                    key = 'Op:{}-{}'.format(prev_stage(stage_idx), stage_idx)
-                    latencies[key].append(latency)
+                    last_op_stamp = stamp
                 elif evt == 'OpEnd':
                     # In frameOp latency
                     latency = stamp - last_op_stamp
                     key = 'Op:{}'.format(stage_idx)
                     latencies[key].append(latency)
+                    last_op_stamp = stamp
                 elif evt == 'Ack':
                     # Last bolt to spout ack
                     latency = stamp - last_stamp
                     key = '{}-{}'.format(prev_stage(stage_idx), stage_idx)
                     latencies[key].append(latency)
-                last_stamp = stamp
-                last_op_stamp = stamp
+                    last_stamp = stamp
         if not frame['failed'] is None and 'total' in latencies:
             # The frame failed but left the final stage
             anomaly_cnt = anomaly_cnt + 1
@@ -443,14 +442,13 @@ def compute_stage_dist(tidy_logs, normalize=True, step=1000, excludeCat=None):
             dist['time'] = t
         seq = log['seq']
         fr = last_stage[seq]
-        cat_idx = cat2idx[log['stage']]
         if log['evt'] == 'Entering':
-            to = cat_idx
+            to = cat2idx[log['stage']]
         elif log['evt'] == 'Leaving':
-            to = cat_idx + 1
+            to = cat2idx[log['stage']] + 1
         elif log['evt'] == 'Retry':
             fr = -1
-            to = cat_idx + 1
+            to = cat2idx[log['stage']] + 1
         elif log['evt'] == 'Failed':
             #to = cat2idx['failed']
             pass
@@ -503,12 +501,14 @@ def fps_plot(tidy_logs, step=1000):
     leaving_queue = compute_fps(tidy_logs, stage='spout', evt='Leaving', step=step)
     ack = compute_fps(tidy_logs, stage='ack', evt='Ack', step=step)
     failed = compute_fps(tidy_logs, stage='spout', evt='Failed', step=step)
+    retry = compute_fps(tidy_logs, stage='spout', evt='Retry', step=step)
 
     fpses = pd.DataFrame({
         'Entering Spout': entering_queue,
         'Leaving Spout': leaving_queue,
         'Ack': ack,
         'Failed': failed,
+        'Retry': retry,
         'time': [i * step / 1000 for i in range(0, len(entering_queue))]
     })
     thePlot = fpses.plot(x='time')
