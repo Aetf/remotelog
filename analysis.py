@@ -495,6 +495,15 @@ def show_frame(logs, seq):
                       item['stamp'], item['size']))
 
 
+def avg_fps(tidy_logs, stage='spout', evt='Entering', step=1000, trim=False, limit=None):
+    fpses = compute_fps(tidy_logs, stage, evt, step)
+    if limit is not None:
+        fpses = fpses[:limit]
+    while trim and fpses[-1] == 0.0:
+        fpses.pop()
+    return "Total: {} Avg: {}".format(len(fpses), sum(fpses)/len(fpses))
+
+
 def fps_plot(tidy_logs, step=1000):
     """Plot!"""
     entering_queue = compute_fps(tidy_logs, stage='spout', evt='Entering', step=step)
@@ -540,8 +549,8 @@ def cdf_plot(clean_frames):
 
 def time_latency_plot(clean_frames, stage='total'):
     """Plot!"""
-    clean_frames.sort(key=frame_key_getter('seq'))
-    ser = pd.Series([frame['latencies'][stage] for frame in clean_frames])
+    ff = sorted(clean_frames, key=frame_key_getter('seq'))
+    ser = pd.Series([frame['latencies'][stage] for frame in ff if stage in frame['latencies']])
     thePlot = ser.plot()
     thePlot.set_xlabel('SequenceNr')
     thePlot.set_ylabel('Latency (ms)')
