@@ -19,7 +19,9 @@ from fabric.api import (cd,
 from fabric import utils
 from fabric.contrib.project import (rsync_project
                                    )
+from progress.bar import IncrementalBar
 
+current_milli_time = lambda: int(round(time.time() * 1000))
 env.use_ssh_config = True
 
 saved_params_file = 'saved_params.pickle'
@@ -27,6 +29,16 @@ project_dir = '/home/peifeng/VideoDB'
 work_dir = '/home/peifeng/work'
 runtime_dir = os.path.join(work_dir, 'run')
 
+def wait_with_progress(max_sec, msg=None, resolution=1):
+    """Wait with a nice progress bar"""
+    if msg is None:
+        msg = 'Running'
+    progbar = IncrementalBar(msg, max=max_sec * resolution,
+                             suffix='%(percent).1f%% - %(elapsed_td)s')
+    while progbar.elapsed < max_sec:
+        time.sleep(1 / resolution)
+        progbar.next()
+    progbar.finish()
 
 def main_host(configuration):
     """Get main host from configuration"""
@@ -207,8 +219,8 @@ def uptodate(proj=None):
     if proj is None:
         proj = project_dir
     with cd(proj):
-        run('git remote update')
         with hide('running', 'stdout', 'stderr'):
+            run('git remote update')
             local = run('git rev-parse @')
             remote = run('git rev-parse @{u}')
             base = run('git merge-base @ @{u}')
@@ -316,10 +328,11 @@ def storm_submit(topology, *args):
 @task
 def storm(action=None, configuration=None):
     """Bring up storm cluster"""
-    execute(zookeeper, action=action, host=main_host(configuration))
-    execute(storm_nimbus, action=action, host=main_host(configuration))
-    execute(storm_supervisor, action=action, hosts=host_list(configuration))
-    execute(storm_ui, action=action, hosts=main_host(configuration))
+    with hide('running'):
+        execute(zookeeper, action=action, host=main_host(configuration))
+        execute(storm_nimbus, action=action, host=main_host(configuration))
+        execute(storm_supervisor, action=action, hosts=host_list(configuration))
+        execute(storm_ui, action=action, hosts=main_host(configuration))
 
 
 @task
@@ -402,14 +415,42 @@ def limit_cpu(number=32):
 
 
 @task
-def kill_exp(configuration):
+def kill_topology(topology_id, wait_time=30):
+    """Kill a running topology"""
+    kill_cmd = [
+        '/home/peifeng/storm-0.10.0/bin/storm',
+        'kill',
+        str(topology_id),
+        '-w',
+        str(wait_time)
+    ]
+    query_cmd = [
+        '/home/peifeng/storm-0.10.0/bin/storm',
+        'list',
+    ]
+    run(' '.join(kill_cmd))
+    wait_with_progress(int(wait_time), 'Killing')
+    killed = False
+    while not killed:
+        killed = True
+        with hide('running', 'stdout', 'stderr'):
+            for line in run(' '.join(query_cmd)).split():
+                if topology_id in line:
+                    killed = False
+                    time.sleep(1)
+                    break
+
+@task
+def kill_exp(configuration, topology_id=None):
     """Kill running experiment"""
+    if topology_id is not None:
+        execute(kill_topology, topology_id=topology_id, host=main_host(configuration))
     execute(storm, action='stop', configuration=configuration)
     execute(cpu_monitor, action='stop', hosts=host_list(configuration))
 
 
 @task
-def run_exp(configuration=None, topology=None, *args):
+def run_exp(configuration=None, topology=None, cpu=None, *args):
     """Run experiment"""
 
     if not execute(uptodate, '/home/aetf/develop/vcs/VideoDB', host='localhost')['localhost']:
@@ -422,24 +463,39 @@ def run_exp(configuration=None, topology=None, *args):
         if not topology.startswith('nl'):
             topology = 'nl.tno.stormcv.deploy.' + topology
 
+    if cpu is None:
+        cpu = 32
+    else:
+        cpu = int(cpu)
+
     if os.path.exists(saved_params_file):
         with open(saved_params_file, 'rb') as f:
             saved_params = pickle.load(f)
     else:
         saved_params = []
-    print('Saving args: ', args)
     saved_params.append({'topo': topology, 'args': args})
 
-    execute(kill_exp, configuration=configuration)
-    execute(clean_log, host=main_host(configuration))
+    with hide('stdout', 'stderr'):
+        execute(kill_exp, configuration=configuration)
+        execute(clean_log, host=main_host(configuration))
 
     execute(build, host=main_host(configuration))
 
+    with hide('stdout', 'stderr'):
+        execute(limit_cpu, cpu, host=main_host(configuration))
 
-    execute(storm, action='start', configuration=configuration)
-    execute(cpu_monitor, action='start', hosts=host_list(configuration))
+        execute(storm, action='start', configuration=configuration)
+        execute(cpu_monitor, action='start', hosts=host_list(configuration))
 
     execute(storm_submit, topology, *args, host=main_host(configuration))
 
+    wait_with_progress(60 * 2, 'Running', resolution=2)
+
+    with hide('stdout', 'stderr'):
+        execute(kill_exp, topology_id='dnn_classification', configuration=configuration)
+        execute(limit_cpu, 32, host=main_host(configuration))
+
     with open(saved_params_file, 'wb') as f:
         pickle.dump(saved_params, f)
+
+    execute(fetch_log, host=main_host(configuration))
