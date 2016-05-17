@@ -5,6 +5,7 @@ import os
 import time
 from copy import copy, deepcopy
 from collections import defaultdict
+from itertools import groupby
 
 import matplotlib as mpl
 import pandas as pd
@@ -103,6 +104,19 @@ def frame_key_getter(*args):
 def flattened(l):
     """Flatten a list of list"""
     return [item for sublist in l for item in sublist]
+
+
+def str_range(l):
+    """Print a int list as 1-4,7,10,40-50"""
+    ranges = []
+    for _, group in groupby(enumerate(l), lambda index_item: index_item[0] - index_item[1]):
+        group = [item[1] for item in group]
+        #group = map(itemgetter(1), group)
+        if len(group) > 1:
+            ranges.append('{}-{}'.format(group[0], group[-1]))
+        else:
+            ranges.append('{}'.format(group[0]))
+    return ','.join(ranges)
 
 
 def tidy_frame_logs(logs_per_frame, debug=False):
@@ -335,6 +349,9 @@ def compute_latency(frames):
         for k in latencies.keys():
             avg_latency[k] = avg_latency[k] + latencies[k]
             latencies[k] = sum(latencies[k])/len(latencies[k])
+        latencies = defaultdict(int, latencies)
+        latencies['service'] = (latencies['scale'] + latencies['fat_features']
+                                + latencies['drawer'] + latencies['streamer'])
         frame['latencies'] = latencies
 
     if anomaly_cnt > 0:
@@ -380,6 +397,16 @@ def normalizeDict(d, excludeKeys=None):
         else:
             d[k] = 1 / len(keys)
     return d
+
+
+def show_log(logs, seq):
+    """Print log entries for specific frame"""
+    single = [log for log in logs if log['seq'] == seq]
+    single = sorted(single, key=frame_key_getter('stamp'))
+    for item in single:
+        print('Machine: {:9} Seq: {:<5}\t{:<8} {:^12}: {}\tSize: {}'
+              .format(item['machine'], item['seq'], item['evt'], item['stage'],
+                      item['stamp'], item['size']))
 
 
 def compute_fps(tidy_logs, stage='spout', evt='Entering', step=1000):
@@ -464,38 +491,8 @@ def compute_stage_dist(tidy_logs, normalize=True, step=1000, excludeCat=None):
     return distributions
 
 
-def print_frame(frames, seq=None):
-    """Print selected frames or single frame"""
-    if not seq is None and not isinstance(seq, list):
-        seq = [seq]
-    def show(frame):
-        """Print a single frame"""
-        print('Seq: {:<5}\tRetries: {:<2}\tFailed: {}'
-              .format(frame['seq'], len(frame['retries']), frame['failed']))
-        for trial in frame['retries']:
-            print('------------------')
-            for evt, stage_idx, stamp in trial:
-                print('{:<8} {:^12}: {}'.format(evt, stage_idx, stamp))
-
-    if isinstance(frames, list):
-        for frame in frames:
-            if seq is None or frame['seq'] in seq:
-                show(frame)
-    else:
-        show(frames)
-
-
-def show_frame(logs, seq):
-    """Print log entries for specific frame"""
-    single = [log for log in logs if log['seq'] == seq]
-    single = sorted(single, key=frame_key_getter('stamp'))
-    for item in single:
-        print('Machine: {:9} Seq: {:<5}\t{:<8} {:^12}: {}\tSize: {}'
-              .format(item['machine'], item['seq'], item['evt'], item['stage'],
-                      item['stamp'], item['size']))
-
-
 def avg_fps(tidy_logs, stage='spout', evt='Entering', step=1000, trim=False, limit=None):
+    """Calucate average fps"""
     fpses = compute_fps(tidy_logs, stage, evt, step)
     if limit is not None:
         fpses = fpses[:limit]
@@ -504,8 +501,11 @@ def avg_fps(tidy_logs, stage='spout', evt='Entering', step=1000, trim=False, lim
     return "Total: {} Avg: {}".format(len(fpses), sum(fpses)/len(fpses))
 
 
-def fps_plot(tidy_logs, step=1000):
+def fps_plot(tidy_logs, point=('Entering', 'spout'), step=1000):
     """Plot!"""
+    if not isinstance(point, list):
+        point = [point]
+
     entering_queue = compute_fps(tidy_logs, stage='spout', evt='Entering', step=step)
     leaving_queue = compute_fps(tidy_logs, stage='spout', evt='Leaving', step=step)
     ack = compute_fps(tidy_logs, stage='ack', evt='Ack', step=step)
@@ -513,13 +513,10 @@ def fps_plot(tidy_logs, step=1000):
     retry = compute_fps(tidy_logs, stage='spout', evt='Retry', step=step)
 
     fpses = pd.DataFrame({
-        'Entering Spout': entering_queue,
-        'Leaving Spout': leaving_queue,
-        'Ack': ack,
-        'Failed': failed,
-        'Retry': retry,
-        'time': [i * step / 1000 for i in range(0, len(entering_queue))]
+        '{} {}'.format(evt, stage): compute_fps(tidy_logs, stage=stage, evt=evt, step=step)
+        for evt, stage in point
     })
+    fpses.loc[:, 'time'] = [i * step / 1000 for i in range(0, len(fpses.index))]
     thePlot = fpses.plot(x='time')
     thePlot.set_ylabel('Frame per second')
     thePlot.set_xlabel('Time (s)')
@@ -549,9 +546,17 @@ def cdf_plot(clean_frames):
 
 def time_latency_plot(clean_frames, stage='total'):
     """Plot!"""
+    if not isinstance(stage, list):
+        stage = [stage]
+
     ff = sorted(clean_frames, key=frame_key_getter('seq'))
-    ser = pd.Series([frame['latencies'][stage] for frame in ff if stage in frame['latencies']])
-    thePlot = ser.plot()
+    df = pd.DataFrame({
+        s: pd.Series([frame['latencies'][s] for frame in ff if s in frame['latencies']])
+        for s in stage
+    })
+    thePlot = df.plot()
+    #ser = pd.Series([frame['latencies'][stage] for frame in ff if stage in frame['latencies']])
+    #thePlot = ser.plot()
     thePlot.set_xlabel('SequenceNr')
     thePlot.set_ylabel('Latency (ms)')
     thePlot.figure.tight_layout()
@@ -561,13 +566,17 @@ def time_latency_plot(clean_frames, stage='total'):
 def latency_plot(clean_frames):
     """Plot!"""
     latenciesDf = pd.DataFrame.from_dict([frame['latencies'] for frame in clean_frames])
-    latAx = sns.barplot(data=latenciesDf, order=(full_stages[:-2] + ['total']), saturation=0.4)
+    sns.plt.figure()
+    latAx = sns.barplot(data=latenciesDf, order=(full_stages[:-2] + ['service', 'total']),
+                        saturation=0.4)
     latAx.set_yscale('log')
     latAx.set_ylabel('Latency (ms)')
     latAx.set_xticklabels(latAx.get_xticklabels(), rotation=30)
     for p in latAx.patches:
         value = '{:.2f}'.format(p.get_height())
-        latAx.annotate(value, xy=(p.get_x() + p.get_width()/2, p.get_height()),
+        pos = (p.get_x() + p.get_width()/2,
+               p.get_height() if p.get_height() > 0 else 10)
+        latAx.annotate(value, xy=pos,
                        xytext=(0, 8), xycoords='data', textcoords='offset points',
                        size='small', ha='center', va='center')
     latAx.figure.tight_layout()
@@ -639,3 +648,41 @@ def run(log_dir=None):
     sns.set_style('whitegrid')
 
     return tidy_logs, frames, clean_frames, distributions, cpus
+
+class exp_res:
+    """An object holds all parsed logs for one experiment"""
+    def __init__(self, log_dir):
+        self.tidy_logs, self.frames, self.clean_frames, self.distributions, self.cpus = run(log_dir)
+        self.seqs = sorted([f['seq'] for f in self.clean_frames])
+
+    def latency(self, seq=None):
+        """Print and plot selected frames. seq can be a list or a single number"""
+        if seq is not None and not isinstance(seq, list):
+            seq = [seq]
+        elif seq is None:
+            seq = self.seqs
+
+        selected = [frame for frame in self.clean_frames
+                    if seq is None or frame['seq'] in seq]
+        for frame in selected:
+            print('Seq: {:<5}\tRetries: {:<2}\tFailed: {}'
+                  .format(frame['seq'], len(frame['retries']), frame['failed']))
+            for trial in frame['retries']:
+                print('------------------')
+                for evt, stage_idx, stamp in trial:
+                    print('{:<8} {:^12}: {}'.format(evt, stage_idx, stamp))
+
+        p = latency_plot(selected)
+        p.set_title('Frame {}'.format(str_range(seq)))
+        p.figure.tight_layout()
+        return p
+
+    def seq_latency(self, stage='total'):
+        """Plot latency to seq"""
+        return time_latency_plot(self.clean_frames, stage)
+
+    def fps(self, point=None, step=1000):
+        """Plot FPS at stage"""
+        if point is None:
+            point = [('Entering', 'spout'), ('Ack', 'ack')]
+        return fps_plot(self.tidy_logs, point=point, step=step)
