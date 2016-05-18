@@ -704,7 +704,7 @@ class exp_res:
 
     def avg_fps(self, stage='spout', evt='Entering', trim=False, limit=None):
         """Calucate average fps"""
-        fpses = compute_fps(self.tidy_logs, stage, evt, step)
+        fpses = compute_fps(self.tidy_logs, stage, evt)
         if limit is not None:
             fpses = fpses[:limit]
         while trim and fpses[-1] == 0.0:
