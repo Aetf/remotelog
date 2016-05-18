@@ -491,26 +491,10 @@ def compute_stage_dist(tidy_logs, normalize=True, step=1000, excludeCat=None):
     return distributions
 
 
-def avg_fps(tidy_logs, stage='spout', evt='Entering', step=1000, trim=False, limit=None):
-    """Calucate average fps"""
-    fpses = compute_fps(tidy_logs, stage, evt, step)
-    if limit is not None:
-        fpses = fpses[:limit]
-    while trim and fpses[-1] == 0.0:
-        fpses.pop()
-    return "Total: {} Avg: {}".format(len(fpses), sum(fpses)/len(fpses))
-
-
 def fps_plot(tidy_logs, point=('Entering', 'spout'), step=1000):
     """Plot!"""
     if not isinstance(point, list):
         point = [point]
-
-    entering_queue = compute_fps(tidy_logs, stage='spout', evt='Entering', step=step)
-    leaving_queue = compute_fps(tidy_logs, stage='spout', evt='Leaving', step=step)
-    ack = compute_fps(tidy_logs, stage='ack', evt='Ack', step=step)
-    failed = compute_fps(tidy_logs, stage='spout', evt='Failed', step=step)
-    retry = compute_fps(tidy_logs, stage='spout', evt='Retry', step=step)
 
     fpses = pd.DataFrame({
         '{} {}'.format(evt, stage): compute_fps(tidy_logs, stage=stage, evt=evt, step=step)
@@ -524,14 +508,21 @@ def fps_plot(tidy_logs, point=('Entering', 'spout'), step=1000):
     return thePlot
 
 
-def cpu_plot(cpu):
+def cpu_plot(cpu, which=None):
     """Plot!"""
-    df = pd.DataFrame.from_dict(cpu)
-    thePlot = df.plot(x='timestamp', y='average')
-    thePlot.set_xlabel('Time (s)')
-    thePlot.set_ylabel('CPU utilization (%)')
-    thePlot.figure.tight_layout()
-    return thePlot
+    if which is None:
+        which = 'average'
+    fig, axes = sns.plt.subplots(nrows=len(cpu.keys()), ncols=1)
+    if len(cpu.keys()) == 1:
+        axes = [axes]
+    for idx, m in enumerate(cpu.keys()):
+        df = pd.DataFrame.from_dict(cpu[m])
+        thePlot = df.plot(x='timestamp', y=which, ax=axes[idx])
+        thePlot.set_title(m)
+        thePlot.set_xlabel('Time (s)')
+        thePlot.set_ylabel('CPU utilization (%)')
+        thePlot.figure.tight_layout()
+    return fig
 
 
 def cdf_plot(clean_frames):
@@ -651,20 +642,28 @@ def run(log_dir=None):
 
 class exp_res:
     """An object holds all parsed logs for one experiment"""
-    def __init__(self, log_dir):
+    def __init__(self, exp_name):
+        self.exp_name = exp_name
+        log_dir = 'archive/{}'.format(exp_name)
         self.tidy_logs, self.frames, self.clean_frames, self.distributions, self.cpus = run(log_dir)
         self.seqs = sorted([f['seq'] for f in self.clean_frames])
 
-    def latency(self, seq=None):
-        """Print and plot selected frames. seq can be a list or a single number"""
+    def _select(self, seq, raw=False):
+        """Select a subset of frames using seq"""
         if seq is not None and not isinstance(seq, list):
             seq = [seq]
         elif seq is None:
             seq = self.seqs
 
-        selected = [frame for frame in self.clean_frames
+        ff = self.frames if raw else self.clean_frames
+
+        selected = [frame for frame in ff
                     if seq is None or frame['seq'] in seq]
-        for frame in selected:
+        return selected
+
+    def show_frame(self, seq=None, raw=False):
+        """Print frame entries"""
+        for frame in self._select(seq, raw):
             print('Seq: {:<5}\tRetries: {:<2}\tFailed: {}'
                   .format(frame['seq'], len(frame['retries']), frame['failed']))
             for trial in frame['retries']:
@@ -672,17 +671,42 @@ class exp_res:
                 for evt, stage_idx, stamp in trial:
                     print('{:<8} {:^12}: {}'.format(evt, stage_idx, stamp))
 
-        p = latency_plot(selected)
-        p.set_title('Frame {}'.format(str_range(seq)))
+    def latency(self, seq=None):
+        """Print and plot selected frames. seq can be a list or a single number"""
+        p = latency_plot(self._select(seq))
+        p.set_title('Exp: {} Frame {}'.format(self.exp_name,
+                                              str_range(seq) if seq is not None else 'All'))
         p.figure.tight_layout()
         return p
 
     def seq_latency(self, stage='total'):
         """Plot latency to seq"""
-        return time_latency_plot(self.clean_frames, stage)
+        p = time_latency_plot(self.clean_frames, stage)
+        p.set_title('Exp: {}'.format(self.exp_name))
+        p.figure.tight_layout()
+        return p
 
     def fps(self, point=None, step=1000):
         """Plot FPS at stage"""
         if point is None:
             point = [('Entering', 'spout'), ('Ack', 'ack')]
-        return fps_plot(self.tidy_logs, point=point, step=step)
+        p = fps_plot(self.tidy_logs, point=point, step=step)
+        p.set_title('Exp: {}'.format(self.exp_name))
+        p.figure.tight_layout()
+        return p
+
+    def cpu(self, which=None):
+        """Plot CPU usage"""
+        p = cpu_plot(self.cpus, which)
+        p.suptitle('Exp: {}'.format(self.exp_name), x=.2)
+        p.tight_layout()
+        return p
+
+    def avg_fps(self, stage='spout', evt='Entering', trim=False, limit=None):
+        """Calucate average fps"""
+        fpses = compute_fps(self.tidy_logs, stage, evt, step)
+        if limit is not None:
+            fpses = fpses[:limit]
+        while trim and fpses[-1] == 0.0:
+            fpses.pop()
+        return "Total: {} Avg: {}".format(len(fpses), sum(fpses)/len(fpses))
