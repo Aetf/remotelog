@@ -453,6 +453,11 @@ def kill_exp(configuration, topology_id=None):
 def run_exp(configuration=None, topology=None, cpu=None, *args):
     """Run experiment"""
 
+    # save sudo password
+    with settings(host_string=main_host(configuration)):
+        with hide('running', 'stdout', 'stderr'):
+            sudo('echo good')
+
     if not execute(uptodate, '/home/aetf/develop/vcs/VideoDB', host='localhost')['localhost']:
         utils.error('Your working copy is not clean, which cannot be fetched by remote serves')
         return
