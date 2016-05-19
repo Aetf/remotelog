@@ -562,14 +562,16 @@ def latency_plot(clean_frames):
                         saturation=0.4)
     latAx.set_yscale('log')
     latAx.set_ylabel('Latency (ms)')
-    latAx.set_xticklabels(latAx.get_xticklabels(), rotation=30)
+    latAx.set_xticklabels(latAx.get_xticklabels(), rotation=30, size='xx-small')
+    #latAx.tick_params(axis='x', which='major', labelsize=6)
+    #latAx.tick_params(axis='x', which='minor', labelsize=4)
     for p in latAx.patches:
         value = '{:.2f}'.format(p.get_height())
         pos = (p.get_x() + p.get_width()/2,
                p.get_height() if p.get_height() > 0 else 10)
         latAx.annotate(value, xy=pos,
                        xytext=(0, 8), xycoords='data', textcoords='offset points',
-                       size='small', ha='center', va='center')
+                       size='xx-small', ha='center', va='center')
     latAx.figure.tight_layout()
     return latAx
 
@@ -674,15 +676,15 @@ class exp_res:
     def latency(self, seq=None):
         """Print and plot selected frames. seq can be a list or a single number"""
         p = latency_plot(self._select(seq))
-        p.set_title('Exp: {} Frame {}'.format(self.exp_name,
-                                              str_range(seq) if seq is not None else 'All'))
+        p.set_title('Frame {}'.format(str_range(seq) if seq is not None else 'All'))
+        p.figure.canvas.set_window_title('Exp: {}'.format(self.exp_name))
         p.figure.tight_layout()
         return p
 
     def seq_latency(self, stage='total'):
         """Plot latency to seq"""
         p = time_latency_plot(self.clean_frames, stage)
-        p.set_title('Exp: {}'.format(self.exp_name))
+        p.figure.canvas.set_window_title('Exp: {}'.format(self.exp_name))
         p.figure.tight_layout()
         return p
 
@@ -691,14 +693,14 @@ class exp_res:
         if point is None:
             point = [('Entering', 'spout'), ('Ack', 'ack')]
         p = fps_plot(self.tidy_logs, point=point, step=step)
-        p.set_title('Exp: {}'.format(self.exp_name))
+        p.figure.canvas.set_window_title('Exp: {}'.format(self.exp_name))
         p.figure.tight_layout()
         return p
 
     def cpu(self, which=None):
         """Plot CPU usage"""
         p = cpu_plot(self.cpus, which)
-        p.suptitle('Exp: {}'.format(self.exp_name), x=.2)
+        p.canvas.set_window_title('Exp: {}'.format(self.exp_name))
         p.tight_layout()
         return p
 
