@@ -4,6 +4,7 @@ import contextlib
 import pickle
 import os.path
 import time
+import itertools
 from fabric.api import (cd,
                         env,
                         execute,
@@ -504,3 +505,29 @@ def run_exp(configuration=None, topology=None, cpu=None, *args):
         pickle.dump(saved_params, f)
 
     execute(fetch_log, host=main_host(configuration))
+
+@task
+def batch_run():
+    """Batch run"""
+    topology = ['DNNTopology']
+    cores = [32]
+    args = [
+        'num-workers=1',
+        'fetcher=image',
+        ['fps=8'],
+        'auto-sleep=0',
+        'msg-timeout=1000000',
+        'max-spout-pending=10000',
+        'scale=1',
+        ['fat=31', 'fat=32', 'fat=33', 'fat=35', 'fat=39', 'fat=43'],
+        #['fat=25', 'fat=23', 'fat=21'],
+        'drawer=1'
+    ]
+
+    for idx, arg in enumerate(args):
+        if not isinstance(arg, list):
+            args[idx] = [arg]
+
+    for combo in itertools.product(topology, cores, *args):
+        #print('combo: ', combo)
+        execute(run_exp, 'clarity26', *combo)
