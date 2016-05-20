@@ -642,13 +642,32 @@ def run(log_dir=None):
 
     return tidy_logs, frames, clean_frames, distributions, cpus
 
-class exp_res:
+class exp_res(object):
     """An object holds all parsed logs for one experiment"""
     def __init__(self, exp_name):
         self.exp_name = exp_name
         log_dir = 'archive/{}'.format(exp_name)
         self.tidy_logs, self.frames, self.clean_frames, self.distributions, self.cpus = run(log_dir)
         self.seqs = sorted([f['seq'] for f in self.clean_frames])
+        self._load_params(os.path.join(log_dir, 'params.txt'))
+
+    def __str__(self):
+        """Print"""
+        return 'exp: {}'.format(self.params)
+
+    def __repr__(self):
+        return self.__str__()
+
+    def _load_params(self, params_path):
+        """Load parameters"""
+        self.params = {}
+        with open(params_path) as f:
+            lines = [(line[:-1] if line.endswith('\n') else line) for line in f.readlines()]
+            self.params['topology_class'] = lines[0]
+            for line in lines[1:]:
+                if line.startswith('--'):
+                    key, value = line[2:].split('=')
+                    self.params[key] = value
 
     def _select(self, seq, raw=False):
         """Select a subset of frames using seq"""
@@ -672,6 +691,10 @@ class exp_res:
                 print('------------------')
                 for evt, stage_idx, stamp in trial:
                     print('{:<8} {:^12}: {}'.format(evt, stage_idx, stamp))
+
+    def param_core(self):
+        """Get cores"""
+        return int(self.params['scale']) + int(self.params['fat']) + int(self.params['drawer']) + 3
 
     def latency(self, seq=None):
         """Print and plot selected frames. seq can be a list or a single number"""
@@ -705,10 +728,51 @@ class exp_res:
         return p
 
     def avg_fps(self, stage='spout', evt='Entering', trim=False, limit=None):
-        """Calucate average fps"""
+        """Calculate average fps"""
         fpses = compute_fps(self.tidy_logs, stage, evt)
         if limit is not None:
             fpses = fpses[:limit]
         while trim and fpses[-1] == 0.0:
             fpses.pop()
-        return "Total: {} Avg: {}".format(len(fpses), sum(fpses)/len(fpses))
+        return (sum(fpses)/len(fpses), len(fpses))
+
+    def avg_latency(self, which=None):
+        """Calculate average latency"""
+        if which is None:
+            which = 'total'
+        latencies = [f['latencies'][which]
+                     for f in self.clean_frames
+                     if which in f['latencies']]
+        return (sum(latencies)/len(latencies), len(latencies))
+
+class cross_res(object):
+    """Cross analysis of multiple runs of experiments"""
+    def __init__(self, *args):
+        self.exps = [exp_res(arg) for arg in args]
+
+    def latency(self, which='total'):
+        """Average latency"""
+        if not isinstance(which, list):
+            which = [which]
+        df = pd.DataFrame({
+            k: pd.Series([exp.avg_latency(k)[0] for exp in self.exps])
+            for k in which
+        })
+        df.loc[:, 'Threads for fat_features'] = [int(exp.params['fat']) for exp in self.exps]
+        df = df.sort('Threads for fat_features')
+        p = df.plot(x='Threads for fat_features')
+        p.set_ylabel('Latency (ms)')
+        return p, df
+
+    def fps(self, points=None):
+        """Average fps"""
+        if points is None:
+            points = [('Entering', 'spout'), ('Ack', 'ack')]
+        df = pd.DataFrame({
+            '{} {}'.format(evt, stage): pd.Series([exp.avg_fps(stage, evt, trim=True)
+                                                   for exp in self.exps])
+            for evt, stage in points
+        })
+        df.loc[:, 'core'] = [exp.param_core() for exp in self.exps]
+        p = df.plot(x='core')
+        return p
