@@ -220,7 +220,7 @@ def uptodate(proj=None):
     if proj is None:
         proj = project_dir
     with cd(proj):
-        with hide('running', 'stdout', 'stderr'):
+        with hide('running', 'stdout'):
             run('git remote update')
             local = run('git rev-parse @')
             remote = run('git rev-parse @{u}')
@@ -228,10 +228,13 @@ def uptodate(proj=None):
         if local == remote:
             return True
         elif local == base:
+            utils.warn('local: {} remote: {} base: {}'.format(local, remote, base))
             return False
         elif remote == base:
+            utils.warn('local: {} remote: {} base: {}'.format(local, remote, base))
             utils.error('Push project first!!!')
         else:
+            utils.warn('local: {} remote: {} base: {}'.format(local, remote, base))
             utils.error('local diverged!!!')
         return False
 
