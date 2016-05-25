@@ -368,13 +368,16 @@ def fetch_log():
         print('WARNING: Saved params not found')
     if len(saved_params) == 0:
         print('WARNING: Saved params is empty')
-        params = []
+        params = {}
     else:
         params = saved_params.pop()
     with open(saved_params_file, 'wb') as f:
         pickle.dump(saved_params, f)
     with open(os.path.join(log_dir, 'params.txt'), 'w') as f:
-        print(params['topo'], file=f)
+        for key in params.keys():
+            if key == 'args':
+                continue # handle args last
+            print(params[key], file=f)
         for arg in params['args']:
             print('--' + arg, file=f)
 
@@ -482,7 +485,7 @@ def run_exp(configuration=None, topology=None, cpu=None, *args):
             saved_params = pickle.load(f)
     else:
         saved_params = []
-    saved_params.append({'topo': topology, 'args': args})
+    saved_params.append({'topo': topology, 'args': args, 'cpu': cpu})
 
     with hide('stdout', 'stderr'):
         execute(kill_exp, configuration=configuration)
