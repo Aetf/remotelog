@@ -45,7 +45,7 @@ def main_host(configuration):
     """Get main host from configuration"""
     username = 'peifeng'
     if configuration is None:
-        return '{}@clarity25'.format(username)
+        return '{}@clarity26'.format(username)
     else:
         return '{}@{}'.format(username, configuration)
 
@@ -340,32 +340,23 @@ def storm(action=None, configuration=None):
 
 
 @task
-def fetch_log():
+def fetch_log(configuration, saved_params=None):
     """Fetch logs from server"""
     log_dir = os.path.join(time.strftime("archive/%Y-%-m-%d/"), '{}')
-    shorthost = env.host.replace('.eecs.umich.edu', '')
-    per_machine_dir = os.path.join(log_dir, shorthost)
-
 
     num = 1
-    while os.path.exists(per_machine_dir.format(num)):
+    while os.path.exists(log_dir.format(num)):
         num += 1
-    per_machine_dir = per_machine_dir.format(num)
     log_dir = log_dir.format(num)
-
     os.makedirs(log_dir, exist_ok=True)
 
-    rsync_project(remote_dir='/home/peifeng/storm-0.10.0/logs/*worker*.log*',
-                  local_dir=per_machine_dir, upload=False)
-    rsync_project(remote_dir='/home/peifeng/storm-0.10.0/logs/log.cpu',
-                  local_dir=per_machine_dir, upload=False)
-
-    if os.path.exists(saved_params_file):
-        with open(saved_params_file, 'rb') as f:
-            saved_params = pickle.load(f)
-    else:
-        saved_params = []
-        print('WARNING: Saved params not found')
+    if saved_params is None:
+        if os.path.exists(saved_params_file):
+            with open(saved_params_file, 'rb') as f:
+                saved_params = pickle.load(f)
+        else:
+            saved_params = []
+            print('WARNING: Saved params not found')
     if len(saved_params) == 0:
         print('WARNING: Saved params is empty')
         params = {}
@@ -377,9 +368,26 @@ def fetch_log():
         for key in params.keys():
             if key == 'args':
                 continue # handle args last
-            print(params[key], file=f)
+            if key == 'cpu':
+                print('cpu-per-node={}'.format(params[key]), file=f)
+            else:
+                print(params[key], file=f)
         for arg in params['args']:
             print('--' + arg, file=f)
+
+    execute(pull_log_per_node, log_dir, hosts=host_list(configuration))
+
+
+@task
+def pull_log_per_node(log_dir):
+    """pull log from node"""
+    shorthost = env.host.replace('.eecs.umich.edu', '')
+    per_machine_dir = os.path.join(log_dir, shorthost)
+
+    rsync_project(remote_dir='/home/peifeng/storm-0.10.0/logs/*worker*.log*',
+                  local_dir=per_machine_dir, upload=False)
+    rsync_project(remote_dir='/home/peifeng/storm-0.10.0/logs/log.cpu',
+                  local_dir=per_machine_dir, upload=False)
 
 
 @task
@@ -489,28 +497,29 @@ def run_exp(configuration=None, topology=None, cpu=None, *args):
 
     with hide('stdout', 'stderr'):
         execute(kill_exp, configuration=configuration)
-        execute(clean_log, host=main_host(configuration))
+        execute(clean_log, hosts=host_list(configuration))
 
     execute(build, host=main_host(configuration))
 
-    with hide('stdout', 'stderr'):
-        execute(limit_cpu, cpu, host=main_host(configuration))
+    with hide('running', 'stdout'):
+        execute(limit_cpu, cpu, hosts=host_list(configuration))
 
         execute(storm, action='start', configuration=configuration)
         execute(cpu_monitor, action='start', hosts=host_list(configuration))
 
     execute(storm_submit, topology, *args, host=main_host(configuration))
 
-    wait_with_progress(60 * 2, 'Running', resolution=2)
+    wait_with_progress(60 * 4, 'Running', resolution=2)
 
-    with hide('stdout', 'stderr'):
+    with hide('stdout'):
         execute(kill_exp, topology_id='dnn_classification', configuration=configuration)
-        execute(limit_cpu, 32, host=main_host(configuration))
+        execute(limit_cpu, 32, hosts=host_list(configuration))
 
     with open(saved_params_file, 'wb') as f:
         pickle.dump(saved_params, f)
 
-    execute(fetch_log, host=main_host(configuration))
+    print('saved_params is', saved_params)
+    execute(fetch_log, configuration=configuration)
 
 @task
 def batch_run():
@@ -518,15 +527,16 @@ def batch_run():
     topology = ['DNNTopology']
     cores = [32]
     args = [
-        'num-workers=1',
+        'num-workers=2',
         'fetcher=image',
-        ['fps=8'],
+        ['fps=12', 'fps=13'],
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
         'scale=1',
-        ['fat=31', 'fat=32', 'fat=33', 'fat=35', 'fat=39', 'fat=43'],
+        ['fat=40', 'fat=45', 'fat=55', 'fat=60'],
         #['fat=25', 'fat=23', 'fat=21'],
+        #['fat=40',],
         'drawer=1'
     ]
 
@@ -535,5 +545,5 @@ def batch_run():
             args[idx] = [arg]
 
     for combo in itertools.product(topology, cores, *args):
-        #print('combo: ', combo)
-        execute(run_exp, 'clarity26', *combo)
+        print('combo: ', combo)
+        execute(run_exp, None, *combo)

@@ -663,11 +663,14 @@ class exp_res(object):
         self.params = {}
         with open(params_path) as f:
             lines = [(line[:-1] if line.endswith('\n') else line) for line in f.readlines()]
-            self.params['topology_class'] = lines[0]
-            for line in lines[1:]:
+            for line in lines:
                 if line.startswith('--'):
                     key, value = line[2:].split('=')
                     self.params[key] = value
+                elif '=' in line:
+                    self.params['cpu_per_node'] = line.split('=')[1]
+                else:
+                    self.params['topology_class'] = line
 
     def _select(self, seq, raw=False):
         """Select a subset of frames using seq"""
@@ -773,6 +776,9 @@ class cross_res(object):
                                                    for exp in self.exps])
             for evt, stage in points
         })
-        df.loc[:, 'core'] = [exp.param_core() for exp in self.exps]
-        p = df.plot(x='core')
+        #df.loc[:, 'core'] = [exp.param_core() for exp in self.exps]
+        #p = df.plot(x='core')
+        #df.loc[:, 'threads for fat'] = [exp.params['fat'] for exp in self.exps]
+        #p = df.plot(x='threads for fat')
+        p = df.plot()
         return p
