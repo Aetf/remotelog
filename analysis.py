@@ -120,37 +120,75 @@ def str_range(l):
 
 
 def tidy_frame_logs(logs_per_frame, debug=False):
-    """Fix odd log orders"""
+    """Fix odd cross stage log orders"""
     res = sorted(deepcopy(logs_per_frame), key=frame_key_getter('req', 'stamp', 'stage'))
+    counter = 0
     # Fix consecutive entering or leaving entries
     for idx in range(1, len(res)-1):
-        if (res[idx]['evt'] == res[idx-1]['evt']
-                and res[idx]['evt'] == 'Entering'
-                and res[idx-1]['stage'] == res[idx+1]['stage']):
+        if (res[idx]['evt'] == 'Entering'
+                and res[idx-1]['evt'] == 'Entering'
+                and res[idx-1]['stage'] == res[idx+1]['stage']
+                and res[idx-1]['seq'] == res[idx]['seq']
+                and res[idx]['seq'] == res[idx+1]['seq']
+           ):
+            #    Enter A
+            # -> Enter B
+            #    Leave A
+            #    Leave B
             diff = res[idx+1]['stamp'] - res[idx]['stamp']
             if debug or diff > 30:
                 print('WARNING: seq {}: consecutive entering on stage {} and {} with stamp '
                       'difference {}'.format(res[idx]['seq'], res[idx-1]['stage'],
-                                             res[idx]['stage'],
-                                             res[idx+1]['stamp'] - res[idx]['stamp']))
+                                             res[idx]['stage'], diff))
             res[idx]['stamp'], res[idx+1]['stamp'] = res[idx+1]['stamp'], res[idx]['stamp']
-        elif (res[idx]['evt'] == res[idx+1]['evt']
-              and res[idx]['evt'] == 'Leaving'
-              and res[idx-1]['stage'] == res[idx]['stage']):
+            counter += 1
+        elif (res[idx]['evt'] == 'Leaving'
+              and res[idx+1]['evt'] == 'Leaving'
+              and res[idx-1]['stage'] == res[idx]['stage']
+              and res[idx-1]['seq'] == res[idx]['seq']
+              and res[idx]['seq'] == res[idx+1]['seq']
+             ):
+            #    Enter A
+            #    Enter B
+            # -> Leave B
+            #    Leave A
             diff = res[idx+1]['stamp'] - res[idx-1]['stamp']
             if debug or diff > 30:
                 print('WARNING: seq {}: consecutive leaving on stage {} and {} with stamp '
                       'difference {}'.format(res[idx]['seq'], res[idx]['stage'],
-                                             res[idx+1]['stage'],
-                                             res[idx+1]['stamp'] - res[idx-1]['stamp']))
+                                             res[idx+1]['stage'], diff))
             (res[idx-1]['stamp'],
              res[idx]['stamp'],
              res[idx+1]['stamp']) = (res[idx+1]['stamp'],
                                      res[idx-1]['stamp'],
                                      res[idx]['stamp'])
+            counter += 1
+        elif (res[idx]['evt'] == 'Entering'
+              and res[idx-1]['evt'] == 'Entering'
+              and res[idx]['stage'] == 'fat_features'
+              and res[idx+1]['evt'] == 'OpBegin'
+              and res[idx+2]['stage'] == 'scale'
+              and res[idx-1]['seq'] == res[idx]['seq']
+              and res[idx]['seq'] == res[idx+2]['seq']
+             ):
+            #    Enter scale
+            # -> Enter fat_features
+            #    OpBegin A
+            #    Leave scale
+            diff = res[idx+2]['stamp'] - res[idx]['stamp']
+            if debug or diff > 30:
+                print('WARNING: seq {}: consecutive entering on stage {} and {} with stamp '
+                      'difference {}'.format(res[idx]['seq'], res[idx-1]['stage'],
+                                             res[idx]['stage'], diff))
+            (res[idx]['stamp'],
+             res[idx+1]['stamp'],
+             res[idx+2]['stamp']) = (res[idx+2]['stamp'],
+                                     res[idx+2]['stamp'],
+                                     res[idx]['stamp'])
+            counter += 1
 
     res = sorted(res, key=frame_key_getter('stamp', 'stage'))
-    return res
+    return (res, counter)
 
 
 def load_cpu(filename):
@@ -212,8 +250,9 @@ def collect_log(log_dir=None):
         cpus[machine] = load_cpu(cpu_log)
 
     correct_log_type(logs)
-    tidy_logs = [tidy_frame_logs(per_frame) for per_frame in group_by_frame(logs)]
-
+    tidy_logs, corrected_counter = zip(*[tidy_frame_logs(per_frame)
+                                         for per_frame in group_by_frame(logs)])
+    print('Auto fixed cross stage timming issues for {} log entries'.format(sum(corrected_counter)))
     return tidy_logs, cpus
 
 
@@ -256,7 +295,7 @@ def check_frame(frame, debug=False):
             if evt == 'Entering' and not in_stage:
                 if last_stage is not None and next_stage(last_stage) != stage_idx:
                     if debug:
-                        print('Non consecutive stage')
+                        print('Non consecutive stage for frame', frame['seq'])
                     # Non consecutive stage
                     return False
                 last_stage = stage_idx
@@ -265,8 +304,8 @@ def check_frame(frame, debug=False):
                 if last_stage != stage_idx:
                     # Non consecutive stage entering/leaving
                     if debug:
-                        print('Non consecutive stage entering/leaving: last',
-                              last_stage, 'leaving', stage_idx)
+                        print('Non consecutive stage entering/leaving for frame', frame['seq'],
+                              ': last', last_stage, 'leaving', stage_idx)
                     return False
                 in_stage = False
             elif evt == 'OpBegin':
@@ -278,7 +317,7 @@ def check_frame(frame, debug=False):
             else:
                 # Unexpected trial event
                 if debug:
-                    print('Unexpected trial event: ', evt)
+                    print('Unexpected trial event for frame ', frame['seq'], ': ', evt)
                 return False
     return True
 
@@ -297,7 +336,7 @@ def sanity_check(frames, debug=False):
 
 def sanity_filter(frames):
     """Filter the frames to those passed the sanity check"""
-    lst = [frame for frame in frames if check_frame(frame)]
+    lst = [frame for frame in frames if check_frame(frame, debug=True)]
     print('Dropped {} frames'.format(len(frames) - len(lst)))
     return lst
 
@@ -685,7 +724,7 @@ class exp_res(object):
                     if seq is None or frame['seq'] in seq]
         return selected
 
-    def show_frame(self, seq=None, raw=False):
+    def show_frame(self, seq=None, raw=True):
         """Print frame entries"""
         for frame in self._select(seq, raw):
             print('Seq: {:<5}\tRetries: {:<2}\tFailed: {}'
