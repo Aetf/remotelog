@@ -45,6 +45,8 @@ def main_host(configuration):
     """Get main host from configuration"""
     username = 'peifeng'
     if configuration is None:
+        configuration = 'all'
+    if configuration == 'all':
         return '{}@clarity26'.format(username)
     else:
         return '{}@{}'.format(username, configuration)
@@ -54,6 +56,8 @@ def host_list(configuration):
     username = 'peifeng'
     l = ['{}@clarity25', '{}@clarity26']
     if configuration is None:
+        configuration = 'all'
+    if configuration == 'all':
         return [s.format(username) for s in l]
     else:
         return [main_host(configuration)]
@@ -529,12 +533,12 @@ def batch_run():
     args = [
         'num-workers=2',
         'fetcher=image',
-        ['fps=12', 'fps=13'],
+        ['fps=14', 'fps=16', 'fps=18'],
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
         'scale=1',
-        ['fat=40', 'fat=45', 'fat=55', 'fat=60'],
+        ['fat=40', 'fat=50', 'fat=60', 'fat=80', 'fps=100'],
         #['fat=25', 'fat=23', 'fat=21'],
         #['fat=40',],
         'drawer=1'
