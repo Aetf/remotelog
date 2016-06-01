@@ -145,6 +145,7 @@ def tidy_frame_logs(logs_per_frame, debug=False):
         elif (res[idx]['evt'] == 'Leaving'
               and res[idx+1]['evt'] == 'Leaving'
               and res[idx-1]['stage'] == res[idx]['stage']
+              and res[idx-2]['stage'] == res[idx+1]['stage']
               and res[idx-1]['seq'] == res[idx]['seq']
               and res[idx]['seq'] == res[idx+1]['seq']
              ):
@@ -159,9 +160,9 @@ def tidy_frame_logs(logs_per_frame, debug=False):
                                              res[idx+1]['stage'], diff))
             (res[idx-1]['stamp'],
              res[idx]['stamp'],
-             res[idx+1]['stamp']) = (res[idx+1]['stamp'],
-                                     res[idx-1]['stamp'],
-                                     res[idx]['stamp'])
+             res[idx+1]['stamp']) = (res[idx]['stamp'],
+                                     res[idx+1]['stamp'],
+                                     res[idx-1]['stamp'])
             counter += 1
         elif (res[idx]['evt'] == 'Entering'
               and res[idx-1]['evt'] == 'Entering'
@@ -185,6 +186,40 @@ def tidy_frame_logs(logs_per_frame, debug=False):
              res[idx+2]['stamp']) = (res[idx+2]['stamp'],
                                      res[idx+2]['stamp'],
                                      res[idx]['stamp'])
+            counter += 1
+        elif (res[idx]['evt'] == 'Leaving'
+              and res[idx-1]['evt'] == 'Entering'
+              # important, we only handle cases that not handled in first clause
+              and res[idx-2]['evt'] != 'Entering'
+              and res[idx-1]['stage'] == res[idx+1]['stage']
+              and res[idx-1]['seq'] == res[idx]['seq']
+              and res[idx]['seq'] == res[idx+1]['seq']
+             ):
+            #    Enter A
+            #    .....
+            #    Enter B
+            # -> Leave A
+            #    Leave B
+            diff = res[idx]['stamp'] - res[idx-1]['stamp']
+            if debug or diff > 30:
+                print('WARNING: seq {}: consecutive leaving on stage {} and {} with stamp '
+                      'difference {}'.format(res[idx]['seq'], res[idx-1]['stage'],
+                                             res[idx]['stage'], diff))
+            res[idx-1]['stamp'], res[idx]['stamp'] = res[idx]['stamp'], res[idx-1]['stamp']
+            counter += 1
+        elif (res[idx]['evt'] == 'Leaving'
+              and res[idx+1]['evt'] == 'Entering'
+              and res[idx]['stage'] == 'streamer'
+              and res[idx+1]['stage'] == 'streamer'
+              and res[idx]['seq'] == res[idx+1]['seq']
+             ):
+            # -> Leave streamer
+            #    Enter streamer
+            diff = res[idx+1]['stamp'] - res[idx]['stamp']
+            if True or debug or diff > 5:
+                print('WARNING: seq {}: inverted streamer Entering/Leaving'
+                      ' with stamp difference {}'.format(res[idx]['seq'], diff))
+            res[idx]['stamp'], res[idx+1]['stamp'] = res[idx+1]['stamp'], res[idx]['stamp']
             counter += 1
 
     res = sorted(res, key=frame_key_getter('stamp', 'stage'))
@@ -253,7 +288,7 @@ def collect_log(log_dir=None):
     tidy_logs, corrected_counter = zip(*[tidy_frame_logs(per_frame)
                                          for per_frame in group_by_frame(logs)])
     print('Auto fixed cross stage timming issues for {} log entries'.format(sum(corrected_counter)))
-    return tidy_logs, cpus
+    return tidy_logs, cpus, logs
 
 
 def extract_frames(tidy_logs):
@@ -663,7 +698,7 @@ def run(log_dir=None):
     #                  r' (?P<evt>\w+) (?P<stage>\w+):' +
     #                  r' (?P<stamp>\d+)' +
     #                  r'( \(latency (?P<latency>\d+)\))?$')
-    tidy_logs, cpus = collect_log(log_dir)
+    tidy_logs, cpus, raw_logs = collect_log(log_dir)
 
     frames = extract_frames(tidy_logs)
 
@@ -679,14 +714,15 @@ def run(log_dir=None):
     sns.plt.ion()
     sns.set_style('whitegrid')
 
-    return tidy_logs, frames, clean_frames, distributions, cpus
+    return tidy_logs, frames, clean_frames, distributions, cpus, raw_logs
 
 class exp_res(object):
     """An object holds all parsed logs for one experiment"""
     def __init__(self, exp_name):
         self.exp_name = exp_name
         log_dir = 'archive/{}'.format(exp_name)
-        self.tidy_logs, self.frames, self.clean_frames, self.distributions, self.cpus = run(log_dir)
+        (self.tidy_logs, self.frames, self.clean_frames,
+         self.distributions, self.cpus, self.raw_logs) = run(log_dir)
         self.seqs = sorted([f['seq'] for f in self.clean_frames])
         self._load_params(os.path.join(log_dir, 'params.txt'))
 
