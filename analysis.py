@@ -11,6 +11,7 @@ import matplotlib as mpl
 import pandas as pd
 import seaborn as sns
 
+global_debug=False
 stages = ['spout', 'scale', 'fat_features', 'drawer', 'streamer', 'ack']
 stages2idx = {stages[idx]: idx for idx in range(0, len(stages))}
 
@@ -285,7 +286,7 @@ def collect_log(log_dir=None):
         cpus[machine] = load_cpu(cpu_log)
 
     correct_log_type(logs)
-    tidy_logs, corrected_counter = zip(*[tidy_frame_logs(per_frame)
+    tidy_logs, corrected_counter = zip(*[tidy_frame_logs(per_frame, debug=global_debug)
                                          for per_frame in group_by_frame(logs)])
     print('Auto fixed cross stage timming issues for {} log entries'.format(sum(corrected_counter)))
     return tidy_logs, cpus, logs
@@ -371,7 +372,7 @@ def sanity_check(frames, debug=False):
 
 def sanity_filter(frames):
     """Filter the frames to those passed the sanity check"""
-    lst = [frame for frame in frames if check_frame(frame, debug=True)]
+    lst = [frame for frame in frames if check_frame(frame, debug=global_debug)]
     print('Dropped {} frames'.format(len(frames) - len(lst)))
     return lst
 
