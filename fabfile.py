@@ -513,7 +513,7 @@ def run_exp(configuration=None, topology=None, cpu=None, *args):
 
     execute(storm_submit, topology, *args, host=main_host(configuration))
 
-    wait_with_progress(60 * 4, 'Running', resolution=2)
+    wait_with_progress(60 * 5, 'Running', resolution=2)
 
     with hide('stdout'):
         execute(kill_exp, topology_id='dnn_classification', configuration=configuration)
@@ -533,15 +533,15 @@ def batch_run():
     args = [
         'num-workers=2',
         'fetcher=image',
-        ['fps=14', 'fps=16', 'fps=18'],
+        ['fps=15', 'fps=16', 'fps=18', 'fps=20'],
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
-        'scale=1',
-        ['fat=40', 'fat=50', 'fat=60', 'fat=80', 'fps=100'],
+        'scale=2',
+        ['fat=40', 'fat=50', 'fat=60', 'fat=80', 'fat=100'],
         #['fat=25', 'fat=23', 'fat=21'],
-        #['fat=40',],
-        'drawer=1'
+        #['fat=100',],
+        'drawer=2'
     ]
 
     for idx, arg in enumerate(args):
@@ -550,4 +550,4 @@ def batch_run():
 
     for combo in itertools.product(topology, cores, *args):
         print('combo: ', combo)
-        execute(run_exp, None, *combo)
+        execute(run_exp, 'all', *combo)
