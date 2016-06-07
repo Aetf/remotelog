@@ -529,19 +529,19 @@ def run_exp(configuration=None, topology=None, cpu=None, *args):
 def batch_run():
     """Batch run"""
     topology = ['DNNTopology']
-    cores = [16, 32]
+    cores = [32]
     args = [
-        'num-workers=1',
+        'num-workers=2',
         'fetcher=image',
-        ['fps=1', 'fps=2'],
+        ['fps=9', 'fps=11', 'fps=13'],
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
-        'scale=1',
-        #['fat=5', 'fat=50', 'fat=60', 'fat=80', 'fat=100'],
+        ['scale=2'],
+        ['fat=40', 'fat=50', 'fat=60', 'fat=80', 'fat=100'],
         #['fat=25', 'fat=23', 'fat=21'],
-        ['fat=27',],
-        'drawer=1'
+        #['fat=50',],
+        'drawer=2'
     ]
 
     for idx, arg in enumerate(args):
@@ -550,4 +550,4 @@ def batch_run():
 
     for combo in itertools.product(topology, cores, *args):
         print('combo: ', combo)
-        execute(run_exp, 'clarity26', *combo)
+        execute(run_exp, 'all', *combo)
