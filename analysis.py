@@ -289,7 +289,7 @@ def collect_log(log_dir=None):
     tidy_logs, corrected_counter = zip(*[tidy_frame_logs(per_frame, debug=global_debug)
                                          for per_frame in group_by_frame(logs)])
     print('Auto fixed cross stage timming issues for {} log entries'.format(sum(corrected_counter)))
-    return tidy_logs, cpus, logs
+    return list(tidy_logs), cpus, logs
 
 
 def extract_frames(tidy_logs):
@@ -616,11 +616,14 @@ def time_latency_plot(clean_frames, stage='total'):
         stage = [stage]
 
     ff = sorted(clean_frames, key=frame_key_getter('seq'))
+    ff = [frame for frame in ff
+          if set.issubset(set(stage), frame['latencies'].keys())]
     df = pd.DataFrame({
-        s: pd.Series([frame['latencies'][s] for frame in ff if s in frame['latencies']])
+        s: pd.Series([frame['latencies'][s] for frame in ff])
         for s in stage
     })
-    thePlot = df.plot()
+    df.loc[:, 'SequenceNr'] = [frame['seq'] for frame in ff]
+    thePlot = df.plot(x='SequenceNr')
     #ser = pd.Series([frame['latencies'][stage] for frame in ff if stage in frame['latencies']])
     #thePlot = ser.plot()
     thePlot.set_xlabel('SequenceNr')
@@ -700,6 +703,7 @@ def run(log_dir=None):
     #                  r' (?P<stamp>\d+)' +
     #                  r'( \(latency (?P<latency>\d+)\))?$')
     tidy_logs, cpus, raw_logs = collect_log(log_dir)
+    tidy_logs.sort(key=lambda per_frame_logs: per_frame_logs[0]['seq'])
 
     frames = extract_frames(tidy_logs)
 
@@ -760,6 +764,16 @@ class exp_res(object):
         selected = [frame for frame in ff
                     if seq is None or frame['seq'] in seq]
         return selected
+
+    def show_log(self, seq=None):
+        """Print raw log entries"""
+        if seq is not None and not isinstance(seq, list):
+            seq = [seq]
+        elif seq is None:
+            seq = self.seqs
+
+        for s in seq:
+            show_log(self.tidy_logs[s], s)
 
     def show_frame(self, seq=None, raw=True):
         """Print frame entries"""
@@ -829,7 +843,7 @@ class cross_res(object):
     def __init__(self, *args):
         self.exps = [exp_res(arg) for arg in args]
 
-    def latency(self, which='total'):
+    def latency(self, which='total', x=None):
         """Average latency"""
         if not isinstance(which, list):
             which = [which]
@@ -837,9 +851,13 @@ class cross_res(object):
             k: pd.Series([exp.avg_latency(k)[0] for exp in self.exps])
             for k in which
         })
-        df.loc[:, 'Threads for fat_features'] = [int(exp.params['fat']) for exp in self.exps]
-        df = df.sort('Threads for fat_features')
-        p = df.plot(x='Threads for fat_features')
+
+        if x is None:
+            x = ('Threads for fat_features', lambda exp: int(exp.params['fat']))
+        x_name, x_data = x
+        df.loc[:, x_name] = [x_data(exp) for exp in self.exps]
+        df = df.sort(x_name)
+        p = df.plot(x=x_name)
         p.set_ylabel('Latency (ms)')
         return p, df
 
@@ -848,13 +866,13 @@ class cross_res(object):
         if points is None:
             points = [('Entering', 'spout'), ('Ack', 'ack')]
         df = pd.DataFrame({
-            '{} {}'.format(evt, stage): pd.Series([exp.avg_fps(stage, evt, trim=True)
+            '{} {}'.format(evt, stage): pd.Series([exp.avg_fps(stage, evt, trim=True)[0]
                                                    for exp in self.exps])
             for evt, stage in points
         })
         #df.loc[:, 'core'] = [exp.param_core() for exp in self.exps]
         #p = df.plot(x='core')
-        #df.loc[:, 'threads for fat'] = [exp.params['fat'] for exp in self.exps]
-        #p = df.plot(x='threads for fat')
-        p = df.plot()
+        df.loc[:, 'threads for fat'] = [exp.params['fat'] for exp in self.exps]
+        p = df.plot(x='threads for fat')
+        #p = df.plot()
         return p
