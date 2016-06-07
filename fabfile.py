@@ -434,7 +434,7 @@ def limit_cpu(number=32):
 
 
 @task
-def kill_topology(topology_id, wait_time=30):
+def kill_topology(topology_id, wait_time=60):
     """Kill a running topology"""
     kill_cmd = [
         '/home/peifeng/storm-0.10.0/bin/storm',
@@ -529,19 +529,19 @@ def run_exp(configuration=None, topology=None, cpu=None, *args):
 def batch_run():
     """Batch run"""
     topology = ['DNNTopology']
-    cores = [32]
+    cores = [16, 32]
     args = [
-        'num-workers=2',
+        'num-workers=1',
         'fetcher=image',
-        ['fps=15', 'fps=16', 'fps=18', 'fps=20'],
+        ['fps=1', 'fps=2'],
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
-        'scale=2',
-        ['fat=40', 'fat=50', 'fat=60', 'fat=80', 'fat=100'],
+        'scale=1',
+        #['fat=5', 'fat=50', 'fat=60', 'fat=80', 'fat=100'],
         #['fat=25', 'fat=23', 'fat=21'],
-        #['fat=100',],
-        'drawer=2'
+        ['fat=27',],
+        'drawer=1'
     ]
 
     for idx, arg in enumerate(args):
@@ -550,4 +550,4 @@ def batch_run():
 
     for combo in itertools.product(topology, cores, *args):
         print('combo: ', combo)
-        execute(run_exp, 'all', *combo)
+        execute(run_exp, 'clarity26', *combo)
