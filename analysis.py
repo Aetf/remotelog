@@ -762,6 +762,9 @@ class exp_res(object):
         for log in flattened(self.tidy_logs):
             nodes.add(log['machine'])
         self.params['nodes'] = nodes
+        # parse numbers
+        for key in ['fps', 'scale', 'fat', 'drawer']:
+            self.params[key] = int(self.params[key])
 
     def _select(self, seq, raw=False):
         """Select a subset of frames using seq"""
@@ -849,7 +852,7 @@ class exp_res(object):
             which = 'total'
 
         # sample only from the mid part
-        sample_ratio = 0.25 if len(self.seqs) > 1000 else 0.05
+        sample_ratio = 0.25 if len(self.seqs) > 500 else 0.05
         st_idx = int(len(self.seqs) * sample_ratio)
         mid_idx = int(len(self.seqs) * sample_ratio * 2)
         ed_idx = int(len(self.seqs) * sample_ratio * 3)
@@ -864,7 +867,7 @@ class exp_res(object):
         if pvalue <= 0.05:
             # they are not same
             print('WARNING: {}: possibly bad data, latency values aren\'t stable.'
-                  ' pvalue={}, sample_size={}'
+                  ' pvalue={:.4e}, sample_size={}'
                   .format(self, pvalue, [len(l) for l in lats]), file=sys.stderr)
 
         big_sample = flattened(lats)
@@ -891,7 +894,7 @@ class cross_res(object):
         x_name, x_data = x
         df.loc[:, x_name] = [x_data(exp) for exp in self.exps]
         df = df.sort_values(x_name)
-        p = df.plot(x=x_name, **kwargs)
+        p = df.plot(x=x_name, marker='o', **kwargs)
         p.set_ylabel('Latency (ms)')
         return p, df
 
@@ -910,5 +913,6 @@ class cross_res(object):
         x_name, x_data = x
 
         df.loc[:, x_name] = [x_data(exp) for exp in self.exps]
-        p = df.plot(x=x_name, **kwargs)
+        df = df.sort_values(x_name)
+        p = df.plot(x=x_name, marker='o', **kwargs)
         return p
