@@ -2,6 +2,7 @@
 import re
 import glob
 import os
+import sys
 import time
 from copy import copy, deepcopy
 from collections import defaultdict
@@ -10,6 +11,7 @@ from itertools import groupby
 import matplotlib as mpl
 import pandas as pd
 import seaborn as sns
+from scipy.stats import f_oneway
 
 global_debug=False
 stages = ['spout', 'scale', 'fat_features', 'drawer', 'streamer', 'ack']
@@ -140,7 +142,7 @@ def tidy_frame_logs(logs_per_frame, debug=False):
             if debug or diff > 30:
                 print('WARNING: seq {}: consecutive entering on stage {} and {} with stamp '
                       'difference {}'.format(res[idx]['seq'], res[idx-1]['stage'],
-                                             res[idx]['stage'], diff))
+                                             res[idx]['stage'], diff), file=sys.stderr)
             res[idx]['stamp'], res[idx+1]['stamp'] = res[idx+1]['stamp'], res[idx]['stamp']
             counter += 1
         elif (res[idx]['evt'] == 'Leaving'
@@ -158,7 +160,7 @@ def tidy_frame_logs(logs_per_frame, debug=False):
             if debug or diff > 30:
                 print('WARNING: seq {}: consecutive leaving on stage {} and {} with stamp '
                       'difference {}'.format(res[idx]['seq'], res[idx]['stage'],
-                                             res[idx+1]['stage'], diff))
+                                             res[idx+1]['stage'], diff), file=sys.stderr)
             (res[idx-1]['stamp'],
              res[idx]['stamp'],
              res[idx+1]['stamp']) = (res[idx]['stamp'],
@@ -181,7 +183,7 @@ def tidy_frame_logs(logs_per_frame, debug=False):
             if debug or diff > 30:
                 print('WARNING: seq {}: consecutive entering on stage {} and {} with stamp '
                       'difference {}'.format(res[idx]['seq'], res[idx-1]['stage'],
-                                             res[idx]['stage'], diff))
+                                             res[idx]['stage'], diff), file=sys.stderr)
             (res[idx]['stamp'],
              res[idx+1]['stamp'],
              res[idx+2]['stamp']) = (res[idx+2]['stamp'],
@@ -205,7 +207,7 @@ def tidy_frame_logs(logs_per_frame, debug=False):
             if debug or diff > 30:
                 print('WARNING: seq {}: consecutive leaving on stage {} and {} with stamp '
                       'difference {}'.format(res[idx]['seq'], res[idx-1]['stage'],
-                                             res[idx]['stage'], diff))
+                                             res[idx]['stage'], diff), file=sys.stderr)
             res[idx-1]['stamp'], res[idx]['stamp'] = res[idx]['stamp'], res[idx-1]['stamp']
             counter += 1
         elif (res[idx]['evt'] == 'Leaving'
@@ -219,7 +221,7 @@ def tidy_frame_logs(logs_per_frame, debug=False):
             diff = res[idx+1]['stamp'] - res[idx]['stamp']
             if True or debug or diff > 5:
                 print('WARNING: seq {}: inverted streamer Entering/Leaving'
-                      ' with stamp difference {}'.format(res[idx]['seq'], diff))
+                      ' with stamp difference {}'.format(res[idx]['seq'], diff), file=sys.stderr)
             res[idx]['stamp'], res[idx+1]['stamp'] = res[idx+1]['stamp'], res[idx]['stamp']
             counter += 1
 
@@ -243,13 +245,13 @@ def load_cpu(filename):
                 record['timestamp'] = (stamp - start) / 1000
             elif line.startswith('---'):
                 if record is None:
-                    print('WARNING: malformated cpu log: "{}"'.format(line))
+                    print('WARNING: malformated cpu log: "{}"'.format(line), file=sys.stderr)
                     continue
                 cpu.append(record)
             else:
                 m = pttn.match(line)
                 if m is None or record is None:
-                    print('WARNING: malformated cpu log: "{}"'.format(line))
+                    print('WARNING: malformated cpu log: "{}"'.format(line), file=sys.stderr)
                     continue
                 cpuid = m.groupdict()['cpu']
                 val = float(m.groupdict()['val'])
@@ -273,7 +275,7 @@ def collect_log(log_dir=None):
         log_dir = _globpattern()
     for machine in next(os.walk(log_dir))[1]:
         files = glob.glob(os.path.join(log_dir, machine, '*.log'))
-        print('Collect log from', files)
+        print('Collect log from', files, file=sys.stderr)
         tmp = []
         for file in files:
             tmp = tmp + read_log(file, pttn)
@@ -282,13 +284,13 @@ def collect_log(log_dir=None):
         logs = logs + tmp
 
         cpu_log = os.path.join(log_dir, machine, 'log.cpu')
-        print('Collect cpu log from', cpu_log)
+        print('Collect cpu log from', cpu_log, file=sys.stderr)
         cpus[machine] = load_cpu(cpu_log)
 
     correct_log_type(logs)
     tidy_logs, corrected_counter = zip(*[tidy_frame_logs(per_frame, debug=global_debug)
                                          for per_frame in group_by_frame(logs)])
-    print('Auto fixed cross stage timming issues for {} log entries'.format(sum(corrected_counter)))
+    print('Auto fixed cross stage timming issues for {} log entries'.format(sum(corrected_counter)), file=sys.stderr)
     return list(tidy_logs), cpus, logs
 
 
@@ -331,7 +333,7 @@ def check_frame(frame, debug=False):
             if evt == 'Entering' and not in_stage:
                 if last_stage is not None and next_stage(last_stage) != stage_idx:
                     if debug:
-                        print('Non consecutive stage for frame', frame['seq'])
+                        print('Non consecutive stage for frame', frame['seq'], file=sys.stderr)
                     # Non consecutive stage
                     return False
                 last_stage = stage_idx
@@ -341,7 +343,7 @@ def check_frame(frame, debug=False):
                     # Non consecutive stage entering/leaving
                     if debug:
                         print('Non consecutive stage entering/leaving for frame', frame['seq'],
-                              ': last', last_stage, 'leaving', stage_idx)
+                              ': last', last_stage, 'leaving', stage_idx, file=sys.stderr)
                     return False
                 in_stage = False
             elif evt == 'OpBegin':
@@ -353,7 +355,7 @@ def check_frame(frame, debug=False):
             else:
                 # Unexpected trial event
                 if debug:
-                    print('Unexpected trial event for frame ', frame['seq'], ': ', evt)
+                    print('Unexpected trial event for frame ', frame['seq'], ': ', evt, file=sys.stderr)
                 return False
     return True
 
@@ -363,17 +365,17 @@ def sanity_check(frames, debug=False):
     cnt = 0
     for frame in frames:
         if not check_frame(frame, debug):
-            print('WARNING: sanity check failed at frame', frame)
+            print('WARNING: sanity check failed at frame', frame, file=sys.stderr)
             cnt = cnt + 1
     if cnt > 0:
-        print(cnt, 'frames did not pass the check')
+        print(cnt, 'frames did not pass the check', file=sys.stderr)
     return cnt == 0
 
 
 def sanity_filter(frames):
     """Filter the frames to those passed the sanity check"""
     lst = [frame for frame in frames if check_frame(frame, debug=global_debug)]
-    print('Dropped {} frames'.format(len(frames) - len(lst)))
+    print('Dropped {} frames'.format(len(frames) - len(lst)), file=sys.stderr)
     return lst
 
 
@@ -430,7 +432,7 @@ def compute_latency(frames):
         frame['latencies'] = latencies
 
     if anomaly_cnt > 0:
-        print(anomaly_cnt, 'frames left the final stage but still marked failed')
+        print(anomaly_cnt, 'frames left the final stage but still marked failed', file=sys.stderr)
     # Final average on global avg_latency
     for k in avg_latency.keys():
         avg_latency[k] = sum(avg_latency[k])/len(avg_latency[k])
@@ -443,18 +445,18 @@ def latency_check(frames):
     max_abs = 0
     for frame in frames:
         if 'latencies' not in frame:
-            print('ERROR: run compute_latency before latency_check!!!')
+            print('ERROR: run compute_latency before latency_check!!!', file=sys.stderr)
             return True
         latencies = frame['latencies']
         for k, latency in latencies.items():
             if latency < 0:
                 print("WARNING: Negative latency detected for {} for seq {}!"
-                      .format(k, frame['seq']))
+                      .format(k, frame['seq']), file=sys.stderr)
                 max_abs = max(-latency, max_abs)
                 cnt = cnt + 1
     if cnt > 0:
-        print(cnt, 'instance did not pass the check')
-        print('Max negative latency abs value', max_abs)
+        print(cnt, 'instance did not pass the check', file=sys.stderr)
+        print('Max negative latency abs value', max_abs, file=sys.stderr)
     return cnt == 0
 
 
@@ -531,7 +533,7 @@ def compute_stage_dist(tidy_logs, normalize=True, step=1000, excludeCat=None):
             curr_time = t
             for v in dist.values():
                 if v < 0:
-                    print('WARNING: negative size', dist)
+                    print('WARNING: negative size', dist, file=sys.stderr)
             tmp = copy(dist)
             if normalize:
                 if excludeCat is None:
@@ -566,7 +568,7 @@ def compute_stage_dist(tidy_logs, normalize=True, step=1000, excludeCat=None):
     return distributions
 
 
-def fps_plot(tidy_logs, point=('Entering', 'spout'), step=1000):
+def fps_plot(tidy_logs, point=('Entering', 'spout'), step=1000, **kwargs):
     """Plot!"""
     if not isinstance(point, list):
         point = [point]
@@ -576,7 +578,7 @@ def fps_plot(tidy_logs, point=('Entering', 'spout'), step=1000):
         for evt, stage in point
     })
     fpses.loc[:, 'time'] = [i * step / 1000 for i in range(0, len(fpses.index))]
-    thePlot = fpses.plot(x='time')
+    thePlot = fpses.plot(x='time', **kwargs)
     thePlot.set_ylabel('Frame per second')
     thePlot.set_xlabel('Time (s)')
     thePlot.figure.tight_layout()
@@ -600,17 +602,17 @@ def cpu_plot(cpu, which=None):
     return fig
 
 
-def cdf_plot(clean_frames):
+def cdf_plot(clean_frames, **kwargs):
     """Plot!"""
     ser = pd.Series([frame['latencies']['total'] for frame in clean_frames])
-    thePlot = ser.hist(cumulative=True, histtype='step', bins=2000)
+    thePlot = ser.hist(cumulative=True, histtype='step', bins=2000, **kwargs)
     thePlot.set_xlabel('Latency (ms)')
     thePlot.set_ylabel('Frame count')
     thePlot.figure.tight_layout()
     return thePlot
 
 
-def time_latency_plot(clean_frames, stage='total'):
+def time_latency_plot(clean_frames, stage='total', **kwargs):
     """Plot!"""
     if not isinstance(stage, list):
         stage = [stage]
@@ -623,24 +625,22 @@ def time_latency_plot(clean_frames, stage='total'):
         for s in stage
     })
     df.loc[:, 'SequenceNr'] = [frame['seq'] for frame in ff]
-    thePlot = df.plot(x='SequenceNr')
-    #ser = pd.Series([frame['latencies'][stage] for frame in ff if stage in frame['latencies']])
-    #thePlot = ser.plot()
+    thePlot = df.plot(x='SequenceNr', **kwargs)
     thePlot.set_xlabel('SequenceNr')
     thePlot.set_ylabel('Latency (ms)')
     thePlot.figure.tight_layout()
     return thePlot
 
 
-def latency_plot(clean_frames):
+def latency_plot(clean_frames, **kwargs):
     """Plot!"""
     latenciesDf = pd.DataFrame.from_dict([frame['latencies'] for frame in clean_frames])
     sns.plt.figure()
     latAx = sns.barplot(data=latenciesDf, order=(full_stages[:-2] + ['service', 'total']),
-                        saturation=0.4)
+                        saturation=0.4, **kwargs)
     latAx.set_yscale('log')
     latAx.set_ylabel('Latency (ms)')
-    latAx.set_xticklabels(latAx.get_xticklabels(), rotation=30, size='xx-small')
+    latAx.set_xticklabels(latAx.get_xticklabels(), rotation=30, size='x-small')
     #latAx.tick_params(axis='x', which='major', labelsize=6)
     #latAx.tick_params(axis='x', which='minor', labelsize=4)
     for p in latAx.patches:
@@ -649,12 +649,12 @@ def latency_plot(clean_frames):
                p.get_height() if p.get_height() > 0 else 10)
         latAx.annotate(value, xy=pos,
                        xytext=(0, 8), xycoords='data', textcoords='offset points',
-                       size='xx-small', ha='center', va='center')
+                       size='x-small', ha='center', va='center')
     latAx.figure.tight_layout()
     return latAx
 
 
-def distribution_plot(tidy_logs, normalize=True, step=200, excludeCat=None):
+def distribution_plot(tidy_logs, normalize=True, step=200, excludeCat=None, **kwargs):
     """Plot!"""
     dists = compute_stage_dist(tidy_logs, normalize, step, excludeCat)
     distDf = pd.DataFrame.from_dict(dists)
@@ -665,9 +665,8 @@ def distribution_plot(tidy_logs, normalize=True, step=200, excludeCat=None):
 
     if not excludeCat is None:
         for cat in excludeCat:
-            print(cat)
             del distDf[cat]
-    distAx = distDf.plot.area(x='time')
+    distAx = distDf.plot.area(x='time', **kwargs)
     distAx.set_xlabel('Time (x {}ms)'.format(step))
     distAx.set_ylabel('Ratio')
     distAx.set_ylim([0, 1])
@@ -675,7 +674,7 @@ def distribution_plot(tidy_logs, normalize=True, step=200, excludeCat=None):
     return distAx
 
 
-def start_dist_of_failed(clean_frames):
+def start_dist_of_failed(clean_frames, **kwargs):
     """Plot!"""
     failed = [(int(f['failed']/1000), int(f['retries'][0][0][2]/1000))
               for f in clean_frames if f['failed'] is not None]
@@ -691,7 +690,7 @@ def start_dist_of_failed(clean_frames):
     fd = flattened(d)
     minimum, maximum = min(fd), max(fd)
     sns.plt.hist(d, bins=[i - 0.5 for i in range(minimum, maximum + 1)], stacked=True,
-                 label=['failed at {}'.format(at) for at in failed_at])
+                 label=['failed at {}'.format(at) for at in failed_at], **kwargs)
     thePlot = sns.plt.gca()
     thePlot.legend()
     return thePlot
@@ -733,10 +732,17 @@ class exp_res(object):
 
     def __str__(self):
         """Print"""
-        return 'exp: {}'.format(self.params)
+        return '<exp {} nodes:{}, FPS:{}, topo: {}>'.format(self.exp_name,
+                                                            len(self.params['nodes']),
+                                                            self.params['fps'],
+                                                            self._topology())
 
     def __repr__(self):
         return self.__str__()
+
+    def _topology(self):
+        """A string repr of the topology"""
+        return '{scale}+{fat}+{drawer}'.format(**self.params)
 
     def _load_params(self, params_path):
         """Load parameters"""
@@ -751,6 +757,11 @@ class exp_res(object):
                     self.params['cpu_per_node'] = line.split('=')[1]
                 else:
                     self.params['topology_class'] = line
+        # node count
+        nodes = set()
+        for log in flattened(self.tidy_logs):
+            nodes.add(log['machine'])
+        self.params['nodes'] = nodes
 
     def _select(self, seq, raw=False):
         """Select a subset of frames using seq"""
@@ -789,33 +800,36 @@ class exp_res(object):
         """Get cores"""
         return int(self.params['scale']) + int(self.params['fat']) + int(self.params['drawer']) + 3
 
-    def latency(self, seq=None):
+    def latency(self, seq=None, title=None, **kwargs):
         """Print and plot selected frames. seq can be a list or a single number"""
-        p = latency_plot(self._select(seq))
-        p.set_title('Frame {}'.format(str_range(seq) if seq is not None else 'All'))
+        p = latency_plot(self._select(seq), **kwargs)
+        if title is None:
+            p.set_title('Frame {}'.format(str_range(seq) if seq is not None else 'All'))
+        else:
+            p.set_title(title)
         p.figure.canvas.set_window_title('Exp: {}'.format(self.exp_name))
         p.figure.tight_layout()
         return p
 
-    def seq_latency(self, stage='total'):
+    def seq_latency(self, stage='total', **kwargs):
         """Plot latency to seq"""
-        p = time_latency_plot(self.clean_frames, stage)
+        p = time_latency_plot(self.clean_frames, stage, **kwargs)
         p.figure.canvas.set_window_title('Exp: {}'.format(self.exp_name))
         p.figure.tight_layout()
         return p
 
-    def fps(self, point=None, step=1000):
+    def fps(self, point=None, step=1000, **kwargs):
         """Plot FPS at stage"""
         if point is None:
             point = [('Entering', 'spout'), ('Ack', 'ack')]
-        p = fps_plot(self.tidy_logs, point=point, step=step)
+        p = fps_plot(self.tidy_logs, point=point, step=step, **kwargs)
         p.figure.canvas.set_window_title('Exp: {}'.format(self.exp_name))
         p.figure.tight_layout()
         return p
 
-    def cpu(self, which=None):
+    def cpu(self, which=None, **kwargs):
         """Plot CPU usage"""
-        p = cpu_plot(self.cpus, which)
+        p = cpu_plot(self.cpus, which, **kwargs)
         p.canvas.set_window_title('Exp: {}'.format(self.exp_name))
         p.tight_layout()
         return p
@@ -833,22 +847,42 @@ class exp_res(object):
         """Calculate average latency"""
         if which is None:
             which = 'total'
-        latencies = [f['latencies'][which]
-                     for f in self.clean_frames
-                     if which in f['latencies']]
-        return (sum(latencies)/len(latencies), len(latencies))
+
+        # sample only from the mid part
+        sample_ratio = 0.25 if len(self.seqs) > 1000 else 0.05
+        st_idx = int(len(self.seqs) * sample_ratio)
+        mid_idx = int(len(self.seqs) * sample_ratio * 2)
+        ed_idx = int(len(self.seqs) * sample_ratio * 3)
+        samples = []
+        samples.append(self._select(self.seqs[st_idx:mid_idx]))
+        samples.append(self._select(self.seqs[mid_idx:ed_idx]))
+        # sampled latencies
+        lats = [[f['latencies'][which] for f in sample if which in f['latencies']]
+                for sample in samples]
+        # test if they are same
+        _, pvalue = f_oneway(*lats)
+        if pvalue <= 0.05:
+            # they are not same
+            print('WARNING: {}: possibly bad data, latency values aren\'t stable.'
+                  ' pvalue={}, sample_size={}'
+                  .format(self, pvalue, [len(l) for l in lats]), file=sys.stderr)
+
+        big_sample = flattened(lats)
+        avg_lat = sum(big_sample)/len(big_sample)
+
+        return avg_lat
 
 class cross_res(object):
     """Cross analysis of multiple runs of experiments"""
     def __init__(self, *args):
         self.exps = [exp_res(arg) for arg in args]
 
-    def latency(self, which='total', x=None):
+    def latency(self, which='total', x=None, **kwargs):
         """Average latency"""
         if not isinstance(which, list):
             which = [which]
         df = pd.DataFrame({
-            k: pd.Series([exp.avg_latency(k)[0] for exp in self.exps])
+            k: pd.Series([exp.avg_latency(k) for exp in self.exps])
             for k in which
         })
 
@@ -856,12 +890,12 @@ class cross_res(object):
             x = ('Threads for fat_features', lambda exp: int(exp.params['fat']))
         x_name, x_data = x
         df.loc[:, x_name] = [x_data(exp) for exp in self.exps]
-        df = df.sort(x_name)
-        p = df.plot(x=x_name)
+        df = df.sort_values(x_name)
+        p = df.plot(x=x_name, **kwargs)
         p.set_ylabel('Latency (ms)')
         return p, df
 
-    def fps(self, points=None):
+    def fps(self, points=None, x=None, **kwargs):
         """Average fps"""
         if points is None:
             points = [('Entering', 'spout'), ('Ack', 'ack')]
@@ -870,9 +904,11 @@ class cross_res(object):
                                                    for exp in self.exps])
             for evt, stage in points
         })
-        #df.loc[:, 'core'] = [exp.param_core() for exp in self.exps]
-        #p = df.plot(x='core')
-        df.loc[:, 'threads for fat'] = [exp.params['fat'] for exp in self.exps]
-        p = df.plot(x='threads for fat')
-        #p = df.plot()
+
+        if x is None:
+            x = ('Threads for fat_features', lambda exp: int(exp.params['fat']))
+        x_name, x_data = x
+
+        df.loc[:, x_name] = [x_data(exp) for exp in self.exps]
+        p = df.plot(x=x_name, **kwargs)
         return p
