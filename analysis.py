@@ -7,13 +7,14 @@ import time
 from copy import copy, deepcopy
 from collections import defaultdict
 from itertools import groupby
+from statistics import mean
 
 import matplotlib as mpl
 import pandas as pd
 import seaborn as sns
-from scipy.stats import f_oneway
+from scipy.stats import f_oneway, linregress
 
-global_debug=False
+global_debug = False
 stages = ['spout', 'scale', 'fat_features', 'drawer', 'streamer', 'ack']
 stages2idx = {stages[idx]: idx for idx in range(0, len(stages))}
 
@@ -290,7 +291,8 @@ def collect_log(log_dir=None):
     correct_log_type(logs)
     tidy_logs, corrected_counter = zip(*[tidy_frame_logs(per_frame, debug=global_debug)
                                          for per_frame in group_by_frame(logs)])
-    print('Auto fixed cross stage timming issues for {} log entries'.format(sum(corrected_counter)), file=sys.stderr)
+    print('Auto fixed cross stage timming issues for {} log entries'
+          .format(sum(corrected_counter)), file=sys.stderr)
     return list(tidy_logs), cpus, logs
 
 
@@ -355,7 +357,8 @@ def check_frame(frame, debug=False):
             else:
                 # Unexpected trial event
                 if debug:
-                    print('Unexpected trial event for frame ', frame['seq'], ': ', evt, file=sys.stderr)
+                    print('Unexpected trial event for frame ', frame['seq'], ': ', evt,
+                          file=sys.stderr)
                 return False
     return True
 
@@ -844,36 +847,58 @@ class exp_res(object):
             fpses = fpses[:limit]
         while trim and fpses[-1] == 0.0:
             fpses.pop()
-        return (sum(fpses)/len(fpses), len(fpses))
+        return (mean(fpses), len(fpses))
 
-    def avg_latency(self, which=None):
+    def avg_latency(self, which=None, useLinregress=True, detail=False):
         """Calculate average latency"""
         if which is None:
             which = 'total'
+        def avg1():
+            """Use linregress"""
+            # cut begining and ending
+            begin_at = 0.25 if len(self.seqs) > 500 else 0.05
+            end_at = 0.75 if len(self.seqs) > 500 else 0.95
 
-        # sample only from the mid part
-        sample_ratio = 0.25 if len(self.seqs) > 500 else 0.05
-        st_idx = int(len(self.seqs) * sample_ratio)
-        mid_idx = int(len(self.seqs) * sample_ratio * 2)
-        ed_idx = int(len(self.seqs) * sample_ratio * 3)
-        samples = []
-        samples.append(self._select(self.seqs[st_idx:mid_idx]))
-        samples.append(self._select(self.seqs[mid_idx:ed_idx]))
-        # sampled latencies
-        lats = [[f['latencies'][which] for f in sample if which in f['latencies']]
-                for sample in samples]
-        # test if they are same
-        _, pvalue = f_oneway(*lats)
-        if pvalue <= 0.05:
-            # they are not same
-            print('WARNING: {}: possibly bad data, latency values aren\'t stable.'
-                  ' pvalue={:.4e}, sample_size={}'
-                  .format(self, pvalue, [len(l) for l in lats]), file=sys.stderr)
+            begin_at = int(len(self.seqs) * begin_at)
+            end_at = int(len(self.seqs) * end_at)
+            samples = [(f['seq'], f['latencies'][which])
+                       for f in self._select(self.seqs[begin_at:end_at])
+                       if which in f['latencies']]
 
-        big_sample = flattened(lats)
-        avg_lat = sum(big_sample)/len(big_sample)
+            slope, intercept, _, pvalue, sd = linregress(samples)
+            if detail or (pvalue <= 0.05 and slope > 0.1):
+                # they are not same
+                print('WARNING: {}: possibly bad data, latency values aren\'t stable.'
+                      ' slope={:.3f}, intercept={:.2f}, pvalue={:.2e}, stderr={:.4f},'
+                      ' sample_size={}'.format(self, slope, intercept, pvalue, sd, len(samples)),
+                      file=sys.stderr)
+            return mean([lat for _, lat in samples])
+        def avg2():
+            """Use foneway"""
+            # sample only from the mid part
+            sample_ratio = 0.25 if len(self.seqs) > 500 else 0.05
+            st_idx = int(len(self.seqs) * sample_ratio)
+            mid_idx = int(len(self.seqs) * sample_ratio * 2)
+            ed_idx = int(len(self.seqs) * sample_ratio * 3)
+            samples = []
+            samples.append(self._select(self.seqs[st_idx:mid_idx]))
+            samples.append(self._select(self.seqs[mid_idx:ed_idx]))
+            # sampled latencies
+            lats = [[f['latencies'][which] for f in sample if which in f['latencies']]
+                    for sample in samples]
+            # test if they are same
+            _, pvalue = f_oneway(*lats)
+            if detail or pvalue <= 0.05:
+                # they are not same
+                print('WARNING: {}: possibly bad data, latency values aren\'t stable.'
+                      ' pvalue={:.4e}, sample_size={}, avg={}'
+                      .format(self, pvalue, [len(l) for l in lats], [mean(l) for l in lats]),
+                      file=sys.stderr)
 
-        return avg_lat
+            return mean(flattened(lats))
+
+        return avg1() if useLinregress else avg2()
+
 
 class cross_res(object):
     """Cross analysis of multiple runs of experiments"""
