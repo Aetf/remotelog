@@ -469,7 +469,7 @@ def kill_exp(configuration, topology_id=None):
 
 
 @task
-def run_exp(configuration=None, topology=None, cpu=None, *args):
+def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
     """Run experiment"""
 
     # save sudo password
@@ -487,10 +487,13 @@ def run_exp(configuration=None, topology=None, cpu=None, *args):
         if not topology.startswith('nl'):
             topology = 'nl.tno.stormcv.deploy.' + topology
 
+
     if cpu is None:
         cpu = 32
     else:
         cpu = int(cpu)
+
+    least = int(least)
 
     if os.path.exists(saved_params_file):
         with open(saved_params_file, 'rb') as f:
@@ -513,7 +516,7 @@ def run_exp(configuration=None, topology=None, cpu=None, *args):
 
     execute(storm_submit, topology, *args, host=main_host(configuration))
 
-    wait_with_progress(60 * 5, 'Running', resolution=2)
+    wait_with_progress(60 * least, 'Running', resolution=2)
 
     with hide('stdout'):
         execute(kill_exp, topology_id='dnn_classification', configuration=configuration)
@@ -528,23 +531,25 @@ def run_exp(configuration=None, topology=None, cpu=None, *args):
 @task
 def batch_run():
     """Batch run"""
+    configuration = 'clarity26'
     topology = ['DNNTopology']
-    cores = [8]
+    cores = [32]
     args = [
         'num-workers=1',
         'fetcher=image',
-        #['fps=14', 'fps=15', 'fps=16'],
+        ['fps=5', 'fps=7', 'fps=8'],
         #['fps=3', 'fps=4',],
-        ['fps=3'],
+        #['fps=13'],
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
         #['scale=2'],
         ['scale=1'],
-        ['fat=30', 'fat=40', 'fat=60', 'fat=80', 'fat=100'],
+        #['fat=27', 'fat=28', 'fat=29', 'fat=30', 'fat=31', 'fat=32'],
         #['fat=14', 'fat=16', 'fat=18', 'fat=20'],
-        #['fat=48', 'fat=58', 'fat=68'],
-        #['fat=48',],
+        #['fat=80', 'fat=58', 'fat=68'],
+        #['fat=80', 'fat=100'],
+        ['fat=30',],
         #'drawer=2'
         'drawer=1'
     ]
@@ -555,4 +560,4 @@ def batch_run():
 
     for combo in itertools.product(topology, cores, *args):
         print('combo: ', combo)
-        execute(run_exp, 'clarity26', *combo)
+        execute(run_exp, configuration, *combo)
