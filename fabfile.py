@@ -543,15 +543,16 @@ def batch_run():
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
-        #['scale=2'],
         ['scale=1'],
+        #['scale=1'],
         #['fat=27', 'fat=28', 'fat=29', 'fat=30', 'fat=31', 'fat=32'],
+        #['fat=40', 'fat=50', 'fat=60', 'fat=80', 'fat=100'],
         #['fat=14', 'fat=16', 'fat=18', 'fat=20'],
         #['fat=80', 'fat=58', 'fat=68'],
         #['fat=80', 'fat=100'],
-        ['fat=30',],
-        #'drawer=2'
+        ['fat=31',],
         'drawer=1'
+        #'drawer=1'
     ]
 
     for idx, arg in enumerate(args):
