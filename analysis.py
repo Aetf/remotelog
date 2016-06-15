@@ -771,15 +771,17 @@ class exp_res(object):
 
     def _select(self, seq, raw=False):
         """Select a subset of frames using seq"""
-        if seq is not None and not isinstance(seq, list):
-            seq = [seq]
-        elif seq is None:
+        if seq is None:
             seq = self.seqs
+        try:
+            seq = set(seq)
+        except TypeError:
+            seq = set([seq])
 
         ff = self.frames if raw else self.clean_frames
 
         selected = [frame for frame in ff
-                    if seq is None or frame['seq'] in seq]
+                    if frame['seq'] in seq]
         return selected
 
     def show_log(self, seq=None):
