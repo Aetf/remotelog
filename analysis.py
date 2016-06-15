@@ -819,9 +819,9 @@ class exp_res(object):
         p.figure.tight_layout()
         return p
 
-    def seq_latency(self, stage='total', **kwargs):
+    def seq_latency(self, stage='total', seq=None, **kwargs):
         """Plot latency to seq"""
-        p = time_latency_plot(self.clean_frames, stage, **kwargs)
+        p = time_latency_plot(self._select(seq), stage, **kwargs)
         p.figure.canvas.set_window_title('Exp: {}'.format(self.exp_name))
         p.figure.tight_layout()
         return p
