@@ -631,6 +631,7 @@ def time_latency_plot(clean_frames, stage='total', **kwargs):
     thePlot = df.plot(x='SequenceNr', **kwargs)
     thePlot.set_xlabel('SequenceNr')
     thePlot.set_ylabel('Latency (ms)')
+    thePlot.get_xaxis().set_major_locator(mpl.ticker.MaxNLocator(integer=True))
     thePlot.figure.tight_layout()
     return thePlot
 
@@ -718,6 +719,7 @@ def run(log_dir=None):
     distributions = compute_stage_dist(tidy_logs)
 
     mpl.rcParams['figure.dpi'] = 193
+    mpl.rcParams['axes.formatter.useoffset'] = False
     sns.plt.ion()
     sns.set_style('whitegrid')
 
