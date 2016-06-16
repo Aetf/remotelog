@@ -636,12 +636,13 @@ def time_latency_plot(clean_frames, stage='total', **kwargs):
     return thePlot
 
 
-def latency_plot(clean_frames, **kwargs):
+def latency_plot(clean_frames, latencies=None, **kwargs):
     """Plot!"""
+    if latencies is None:
+        latencies = full_stages[:-2] + ['service', 'total']
     latenciesDf = pd.DataFrame.from_dict([frame['latencies'] for frame in clean_frames])
     sns.plt.figure()
-    latAx = sns.barplot(data=latenciesDf, order=(full_stages[:-2] + ['service', 'total']),
-                        saturation=0.4, **kwargs)
+    latAx = sns.barplot(data=latenciesDf, order=latencies, saturation=0.4, **kwargs)
     latAx.set_yscale('log')
     latAx.set_ylabel('Latency (ms)')
     latAx.set_xticklabels(latAx.get_xticklabels(), rotation=30, size='x-small')
@@ -653,7 +654,7 @@ def latency_plot(clean_frames, **kwargs):
                p.get_height() if p.get_height() > 0 else 10)
         latAx.annotate(value, xy=pos,
                        xytext=(0, 8), xycoords='data', textcoords='offset points',
-                       size='x-small', ha='center', va='center')
+                       size='medium', ha='center', va='center')
     latAx.figure.tight_layout()
     return latAx
 
@@ -784,7 +785,7 @@ class exp_res(object):
 
         selected = [frame for frame in ff
                     if frame['seq'] in seq]
-        return selected
+        return selected, seq
 
     def show_log(self, seq=None):
         """Print raw log entries"""
@@ -798,7 +799,7 @@ class exp_res(object):
 
     def show_frame(self, seq=None, raw=True):
         """Print frame entries"""
-        for frame in self._select(seq, raw):
+        for frame in self._select(seq, raw)[0]:
             print('Seq: {:<5}\tRetries: {:<2}\tFailed: {}'
                   .format(frame['seq'], len(frame['retries']), frame['failed']))
             for trial in frame['retries']:
@@ -812,9 +813,10 @@ class exp_res(object):
 
     def latency(self, seq=None, title=None, **kwargs):
         """Print and plot selected frames. seq can be a list or a single number"""
-        p = latency_plot(self._select(seq), **kwargs)
+        frames, frame_seqs = self._select(seq)
+        p = latency_plot(frames, **kwargs)
         if title is None:
-            p.set_title('Frame {}'.format(str_range(seq) if seq is not None else 'All'))
+            p.set_title('Frame {}'.format(str_range(frame_seqs) if seq is not None else 'All'))
         else:
             p.set_title(title)
         p.figure.canvas.set_window_title('Exp: {}'.format(self.exp_name))
@@ -823,7 +825,7 @@ class exp_res(object):
 
     def seq_latency(self, stage='total', seq=None, **kwargs):
         """Plot latency to seq"""
-        p = time_latency_plot(self._select(seq), stage, **kwargs)
+        p = time_latency_plot(self._select(seq)[0], stage, **kwargs)
         p.figure.canvas.set_window_title('Exp: {}'.format(self.exp_name))
         p.figure.tight_layout()
         return p
@@ -866,7 +868,7 @@ class exp_res(object):
             begin_at = int(len(self.seqs) * begin_at)
             end_at = int(len(self.seqs) * end_at)
             samples = [(f['seq'], f['latencies'][which])
-                       for f in self._select(self.seqs[begin_at:end_at])
+                       for f in self._select(self[0].seqs[begin_at:end_at])
                        if which in f['latencies']]
 
             slope, intercept, _, pvalue, sd = linregress(samples)
@@ -885,8 +887,8 @@ class exp_res(object):
             mid_idx = int(len(self.seqs) * sample_ratio * 2)
             ed_idx = int(len(self.seqs) * sample_ratio * 3)
             samples = []
-            samples.append(self._select(self.seqs[st_idx:mid_idx]))
-            samples.append(self._select(self.seqs[mid_idx:ed_idx]))
+            samples.append(self._select(self[0].seqs[st_idx:mid_idx]))
+            samples.append(self._select(self[0].seqs[mid_idx:ed_idx]))
             # sampled latencies
             lats = [[f['latencies'][which] for f in sample if which in f['latencies']]
                     for sample in samples]
