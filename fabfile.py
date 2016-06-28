@@ -1,5 +1,60 @@
 # [SublimeLinter pylint-disable:not-context-manager ]
-"""Common tasks to run experiments and collect logs"""
+"""Common tasks to run experiments and collect logs
+
+DEPENDENCIES:
+This script uses python package Fabric3, progressbar, which can be installed with command:
+    pip install --user Fabric3 progressbar
+It also requires tmux installed on remote server.
+
+NOTE: adjust the configuration section and main_host/host_list below to suit your needs before
+using it!
+
+USAGE: fab run_exp:<configuration>,<topology>,<cpu-core>[,least][,additional-arguments]
+USAGE: fab batch_run
+run_exp just runs the experiment with specified arguments. What it does:
+    * Check if you have uncommited changes in project dir on local machine
+    * Kill previous topology (if any), stop storm, and delete previous log files
+    * Update project from github, rebuild it if necessary
+    * Disable additional cpu cores and only leave the ones requested
+    * Start storm (zookeeper, nimbus, supervisor, ui)
+    * Start cpu utilization monitor script
+    * Submit topology to storm cluster
+    * Wait for a while (configurable) before killing
+    * Kill topology
+    * Restore disabled cpu cores
+    * Fetch logs from remote servers to local machine
+batch_run just invoke run_exp multiple times with different argument combinations. You specify
+arguments in a list of list, and batch_run will invoke run_exp with all possible combinations
+of the arguments you specified. See batch_run definition for an example on how to use it.
+
+<configuration>:        Set on which machine the topology is going to run.
+                        'all' means run on clarity25 and clarity26 and use clarity26 as nimbus
+                        'clarity25' means run only on clarity25
+                        'clarity26' means run only on clarity26
+                        See `main_host` and `host_list` for details.
+<topology>:             The full qualified name of the topology class you are going to submit to
+                        storm. If it's under package nl.tno.stormcv.deploy, you can only specify
+                        its class name.
+<cpu-core>:             The number of cpu cores you are going to use to run the topology. Other
+                        cores are disabled during the experiment, and re-enabled when finishing.
+                        Remember to change max_cpu_cores to suitable value.
+[least]:                How long to wait before kill the topology in the experiment. Default value
+                        is 5 (minutes).
+[additional-arguments]: Addition arguments are passed directly to topology main function. These
+                        arguments are passed as a plain string with '--' prepended as prefix. e.g.
+                        'abc\\=123' would be '--abc=123' when received by the main function in
+                        args. Note that you have to escape '=' when runing from command line like
+                        in the example.
+                        Refer to topology source code for available arguments.
+
+EXAMPLE: fab run_exp:all,DNNTopology,32,'num-workers\\=2','fetcher\\=image','fps\\=14',\
+         'max-spout-pending\\=10000','scale\\=2','fat\\=60','drawer\\=2','use-caffe\\=1',\
+         'use-gpu\\=0'
+The command says, run DNNTopology on all machines available (defined by host_list), with 2 workers
+in total, using image fetcher, keeping FPS at 14, setting spout pending limit to 10000
+(effectively disable spount automatic throttle), using 2 threads for scale bolt, 60 threads for
+fat_features bolt, 2 threads for drawer bolt, using caffe for NN, not using GPU for computation.
+"""
 import contextlib
 import pickle
 import os.path
@@ -25,6 +80,12 @@ from progress.bar import IncrementalBar
 current_milli_time = lambda: int(round(time.time() * 1000))
 env.use_ssh_config = True
 
+# ====================================================================
+# Path Configurations
+# ====================================================================
+
+# path to VideoDB project on local machine
+local_project = '/home/aetf/develop/vcs/VideoDB'
 # path to VideoDB project on remote server
 project_dir = '/home/peifeng/VideoDB'
 # path to a work directory on remote server
@@ -45,6 +106,9 @@ input_video = '/home/peifeng/work/Breaking_Dawn_Part2_trailer.mp4'
 runtime_dir = os.path.join(work_dir, 'run')
 zoo_cfg_dir = os.path.join(runtime_dir, 'zookeeper', 'conf')
 zoo_log_dir = os.path.join(runtime_dir, 'zookeeper', 'data')
+
+# maximum cpu cores
+max_cpu_cores = 32
 
 saved_params_file = 'saved_params.pickle'
 
@@ -432,7 +496,7 @@ def cpu_monitor(action=None):
         action = 'start'
     with tmux('exp') as ts:
         if action == 'start':
-            ts.run('python ' + accounting_py, new_window='cpu')
+            ts.run('python ' + accounting_py + ' ' + storm_path + '/logs', new_window='cpu')
         elif action == 'stop':
             ts.kill(window='cpu')
         else:
@@ -440,15 +504,15 @@ def cpu_monitor(action=None):
 
 
 @task
-def limit_cpu(number=32):
+def limit_cpu(number=max_cpu_cores):
     """Limit cpu cores to use"""
     number = int(number)
-    number = max(1, min(32, number))
+    number = max(1, min(max_cpu_cores, number))
     cmdptrn = 'tee /sys/devices/system/cpu/cpu{}/online <<EOF\n{}\nEOF'
     with hide('running', 'stdout', 'stderr'):
         for i in range(1, number):
             sudo(cmdptrn.format(i, 1))
-        for i in range(number, 32):
+        for i in range(number, max_cpu_cores):
             sudo(cmdptrn.format(i, 0))
 
 
@@ -496,7 +560,7 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
         with hide('running', 'stdout', 'stderr'):
             sudo('echo good')
 
-    if not execute(uptodate, '/home/aetf/develop/vcs/VideoDB', host='localhost')['localhost']:
+    if not execute(uptodate, local_project, host='localhost')['localhost']:
         utils.error('Your working copy is not clean, which cannot be fetched by remote serves')
         return
 
@@ -508,7 +572,7 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
 
 
     if cpu is None:
-        cpu = 32
+        cpu = max_cpu_cores
     else:
         cpu = int(cpu)
 
@@ -539,7 +603,7 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
 
     with hide('stdout'):
         execute(kill_exp, topology_id='dnn_classification', configuration=configuration)
-        execute(limit_cpu, 32, hosts=host_list(configuration))
+        execute(limit_cpu, max_cpu_cores, hosts=host_list(configuration))
 
     with open(saved_params_file, 'wb') as f:
         pickle.dump(saved_params, f)
