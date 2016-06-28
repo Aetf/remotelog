@@ -25,10 +25,28 @@ from progress.bar import IncrementalBar
 current_milli_time = lambda: int(round(time.time() * 1000))
 env.use_ssh_config = True
 
-saved_params_file = 'saved_params.pickle'
+# path to VideoDB project on remote server
 project_dir = '/home/peifeng/VideoDB'
+# path to a work directory on remote server
 work_dir = '/home/peifeng/work'
+
+# path to storm installation on remote server
+storm_path = '/home/peifeng/storm-0.10.0'
+# path to zookeeper installation on remote server
+zookeeper_path = '/usr/local/zookeeper-3.4.6'
+# path to cpu accounting script on remote server
+accounting_py = '/home/peifeng/work/accounting.py'
+
+# path to input files on remote server
+input_image = '/home/peifeng/work/frame.1080x1920.png'
+input_video = '/home/peifeng/work/Breaking_Dawn_Part2_trailer.mp4'
+
+# runtime path for zookeeper
 runtime_dir = os.path.join(work_dir, 'run')
+zoo_cfg_dir = os.path.join(runtime_dir, 'zookeeper', 'conf')
+zoo_log_dir = os.path.join(runtime_dir, 'zookeeper', 'data')
+
+saved_params_file = 'saved_params.pickle'
 
 def wait_with_progress(max_sec, msg=None, resolution=1):
     """Wait with a nice progress bar"""
@@ -262,9 +280,9 @@ def zookeeper(action=None):
     """Bring up zookeeper servers"""
     if action is None:
         action = 'start'
-    with shell_env(ZOOCFGDIR=os.path.join(runtime_dir, 'zookeeper', 'conf'),
-                   ZOO_LOG_DIR=os.path.join(runtime_dir, 'zookeeper', 'data')):
-        run('/usr/local/zookeeper-3.4.6/bin/zkServer.sh ' + action)
+    with shell_env(ZOOCFGDIR=zoo_cfg_dir,
+                   ZOO_LOG_DIR=zoo_log_dir):
+        run(zookeeper_path + '/bin/zkServer.sh ' + action)
 
 @task
 def storm_nimbus(action=None):
@@ -273,7 +291,7 @@ def storm_nimbus(action=None):
         action = 'start'
     with tmux('exp') as ts:
         if action == 'start':
-            ts.run('/home/peifeng/storm-0.10.0/bin/storm nimbus', new_window='nimbus')
+            ts.run(storm_path + '/bin/storm nimbus', new_window='nimbus')
         elif action == 'stop':
             ts.kill(window='nimbus')
         else:
@@ -287,7 +305,7 @@ def storm_supervisor(action=None):
         action = 'start'
     with tmux('exp') as ts:
         if action == 'start':
-            ts.run('/home/peifeng/storm-0.10.0/bin/storm supervisor', new_window='supervisor')
+            ts.run(storm_path + '/bin/storm supervisor', new_window='supervisor')
         elif action == 'stop':
             ts.kill(window='supervisor')
         else:
@@ -300,7 +318,7 @@ def storm_ui(action=None):
         action = 'start'
     with tmux('exp') as ts:
         if action == 'start':
-            ts.run('/home/peifeng/storm-0.10.0/bin/storm ui', new_window='ui')
+            ts.run(storm_path + '/bin/storm ui', new_window='ui')
         elif action == 'stop':
             ts.kill(window='ui')
         else:
@@ -310,21 +328,22 @@ def storm_ui(action=None):
 @task
 def storm_submit(topology, *args):
     """Submit jar to storm"""
-    files = '/home/peifeng/work/Breaking_Dawn_Part2_trailer.mp4'
+    files = input_video
     for arg in args:
         if arg.startswith('fetcher'):
             fetcher = arg.split('=')[1]
             if fetcher == 'image':
-                files = '/home/peifeng/work/frame.1080x1920.png'
+                files = input_image
             elif fetcher == 'video':
                 pass
             else:
                 utils.error('unsupported fetcher')
 
     cmd = [
-        '/home/peifeng/storm-0.10.0/bin/storm',
+        storm_path + '/bin/storm',
         'jar',
-        '/home/peifeng/work/stormcv-deploy-0.0.1-SNAPSHOT-jar-with-dependencies.jar',
+        project_dir
+            + '/stormcv-deploy/target/stormcv-deploy-0.0.1-SNAPSHOT-jar-with-dependencies.jar',
         topology,
         files,
     ]
@@ -388,9 +407,9 @@ def pull_log_per_node(log_dir):
     shorthost = env.host.replace('.eecs.umich.edu', '')
     per_machine_dir = os.path.join(log_dir, shorthost)
 
-    rsync_project(remote_dir='/home/peifeng/storm-0.10.0/logs/*worker*.log*',
+    rsync_project(remote_dir=storm_path + '/logs/*worker*.log*',
                   local_dir=per_machine_dir, upload=False)
-    rsync_project(remote_dir='/home/peifeng/storm-0.10.0/logs/log.cpu',
+    rsync_project(remote_dir=storm_path + '/logs/log.cpu',
                   local_dir=per_machine_dir, upload=False)
 
 
@@ -400,8 +419,8 @@ def clean_log():
     cmd = [
         'rm',
         '-f',
-        '/home/peifeng/storm-0.10.0/logs/*worker*.log*',
-        '/home/peifeng/storm-0.10.0/logs/log.cpu'
+        storm_path + '/logs/*worker*.log*',
+        storm_path + '/logs/log.cpu'
     ]
     run(' '.join(cmd))
 
@@ -413,7 +432,7 @@ def cpu_monitor(action=None):
         action = 'start'
     with tmux('exp') as ts:
         if action == 'start':
-            ts.run('python /home/peifeng/work/accounting.py', new_window='cpu')
+            ts.run('python ' + accounting_py, new_window='cpu')
         elif action == 'stop':
             ts.kill(window='cpu')
         else:
@@ -437,14 +456,14 @@ def limit_cpu(number=32):
 def kill_topology(topology_id, wait_time=60):
     """Kill a running topology"""
     kill_cmd = [
-        '/home/peifeng/storm-0.10.0/bin/storm',
+        storm_path + '/bin/storm',
         'kill',
         str(topology_id),
         '-w',
         str(wait_time)
     ]
     query_cmd = [
-        '/home/peifeng/storm-0.10.0/bin/storm',
+        storm_path + '/bin/storm',
         'list',
     ]
     run(' '.join(kill_cmd))
@@ -531,13 +550,15 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
 @task
 def batch_run():
     """Batch run"""
-    configuration = 'clarity26'
+    configuration = 'all'
     topology = ['DNNTopology']
     cores = [32]
     args = [
-        'num-workers=1',
+        'num-workers=2',
         'fetcher=image',
-        ['fps=5', 'fps=7', 'fps=8'],
+        'use-caffe=1',
+        'use-gpu=0',
+        ['fps=13', 'fps=13', 'fps=13'],
         #['fps=3', 'fps=4',],
         #['fps=13'],
         'auto-sleep=0',
@@ -550,7 +571,7 @@ def batch_run():
         #['fat=14', 'fat=16', 'fat=18', 'fat=20'],
         #['fat=80', 'fat=58', 'fat=68'],
         #['fat=80', 'fat=100'],
-        ['fat=31',],
+        ['fat=60',],
         'drawer=1'
         #'drawer=1'
     ]
