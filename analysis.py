@@ -868,7 +868,7 @@ class exp_res(object):
             begin_at = int(len(self.seqs) * begin_at)
             end_at = int(len(self.seqs) * end_at)
             samples = [(f['seq'], f['latencies'][which])
-                       for f in self._select(self[0].seqs[begin_at:end_at])
+                       for f in self._select(self.seqs[begin_at:end_at])[0]
                        if which in f['latencies']]
 
             slope, intercept, _, pvalue, sd = linregress(samples)
