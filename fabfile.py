@@ -92,9 +92,9 @@ project_dir = '/home/peifeng/VideoDB'
 work_dir = '/home/peifeng/work'
 
 # path to storm installation on remote server
-storm_path = '/home/peifeng/storm-0.10.0'
+storm_path = '/home/peifeng/tools/storm'
 # path to zookeeper installation on remote server
-zookeeper_path = '/usr/local/zookeeper-3.4.6'
+zookeeper_path = '/home/peifeng/tools/zookeeper'
 # path to cpu accounting script on remote server
 accounting_py = '/home/peifeng/work/accounting.py'
 
@@ -108,7 +108,11 @@ zoo_cfg_dir = os.path.join(runtime_dir, 'zookeeper', 'conf')
 zoo_log_dir = os.path.join(runtime_dir, 'zookeeper', 'data')
 
 # maximum cpu cores
-max_cpu_cores = 32
+max_cpu_cores = {
+    'clarity24': 24,
+    'clarity25': 32,
+    'clarity26': 32,
+}
 
 saved_params_file = 'saved_params.pickle'
 
@@ -504,15 +508,22 @@ def cpu_monitor(action=None):
 
 
 @task
-def limit_cpu(number=max_cpu_cores):
+def limit_cpu(number=None):
     """Limit cpu cores to use"""
-    number = int(number)
-    number = max(1, min(max_cpu_cores, number))
+    shorthost = env.host.replace('.eecs.umich.edu', '')
+    cpu_cores = max_cpu_cores[shorthost]
+
+    if number is None:
+        number = cpu_cores
+    else:
+        number = int(number)
+
+    number = max(1, min(cpu_cores, number))
     cmdptrn = 'tee /sys/devices/system/cpu/cpu{}/online <<EOF\n{}\nEOF'
     with hide('running', 'stdout', 'stderr'):
         for i in range(1, number):
             sudo(cmdptrn.format(i, 1))
-        for i in range(number, max_cpu_cores):
+        for i in range(number, cpu_cores):
             sudo(cmdptrn.format(i, 0))
 
 
@@ -603,7 +614,7 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
 
     with hide('stdout'):
         execute(kill_exp, topology_id='dnn_classification', configuration=configuration)
-        execute(limit_cpu, max_cpu_cores, hosts=host_list(configuration))
+        execute(limit_cpu, hosts=host_list(configuration))
 
     with open(saved_params_file, 'wb') as f:
         pickle.dump(saved_params, f)
