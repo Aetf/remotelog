@@ -770,7 +770,8 @@ class exp_res(object):
         self.params['nodes'] = nodes
         # parse numbers
         for key in ['fps', 'scale', 'fat', 'drawer']:
-            self.params[key] = int(self.params[key])
+            if key in self.params:
+                self.params[key] = int(self.params[key])
 
     def _select(self, seq, raw=False):
         """Select a subset of frames using seq"""
