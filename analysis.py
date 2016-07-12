@@ -15,18 +15,45 @@ import seaborn as sns
 from scipy.stats import f_oneway, linregress
 
 global_debug = False
+topology_stage_map = {
+    'nl.tno.stormcv.deploy.DNNTopology':
+        ['spout', 'scale', 'fat_features', 'drawer', 'streamer', 'ack'],
+    'nl.tno.stormcv.deploy.BatchDNNTopology':
+        ['spout', 'scale', 'fat_features', 'drawer', 'streamer', 'ack'],
+    'nl.tno.stormcv.deploy.SpoutOnly':
+        ['spout', 'noop', 'ack'],
+    'nl.tno.stormcv.deploy.SplitDNNTopology':
+        ['spout', 'scale', 'face_detect', 'dnn_forward', 'dnn_classify',
+         'drawer', 'streamer', 'ack'],
+    'nl.tno.stormcv.deploy.ObjTrackingTopology':
+        ['spout', 'scale', 'obj_track', 'drawer', 'streamer', 'ack'],
+    'nl.tno.stormcv.deploy.E4_SequentialFeaturesTopology':
+        ['spout', 'scale', 'fat_features', 'drawer', 'streamer', 'ack'],
+    'nl.tno.stormcv.deploy.E3_MultipleFeaturesTopology':
+        ['spout', 'scale', 'face', 'sift', 'combiner', 'drawer', 'streamer', 'ack'],
+}
 stages = ['spout', 'scale', 'fat_features', 'drawer', 'streamer', 'ack']
-stages2idx = {stages[idx]: idx for idx in range(0, len(stages))}
-
+stages2idx = {}
 full_stages = []
-for _cur, _nxt in zip(stages[:-1], stages[1:]):
-    full_stages.append(_cur)
-    full_stages.append(_cur + '-' + _nxt)
-full_stages.append(stages[-1])
+categories = []
+cat2idx = {}
 
-categories = ['waiting'] + full_stages + ['finished', 'failed']
-cat2idx = {categories[idx]: idx for idx in range(0, len(categories))}
+def update_stage_info(new_stages):
+    """Recompute stage info"""
+    global stages, stages2idx, full_stages, categories, cat2idx
+    stages = new_stages
+    stages2idx = {stages[idx]: idx for idx in range(0, len(stages))}
 
+    full_stages = []
+    for _cur, _nxt in zip(stages[:-1], stages[1:]):
+        full_stages.append(_cur)
+        full_stages.append(_cur + '-' + _nxt)
+    full_stages.append(stages[-1])
+
+    categories = ['waiting'] + full_stages + ['finished', 'failed']
+    cat2idx = {categories[idx]: idx for idx in range(0, len(categories))}
+
+update_stage_info(stages)
 
 def prev_stage(stage):
     """Previous stage"""
@@ -62,6 +89,10 @@ def correct_log_type(logs):
             log['stage'] = 'spout'
         elif log['stage'] == 'fetcher':
             log['stage'] = 'spout'
+        if log['evt'] == 'OpBegin':
+            log['stage'] = log['stage'][log['stage'].rfind('.')+1:]
+        elif log['evt'] == 'OpEnd':
+            log['stage'] = log['stage'][log['stage'].rfind('.')+1:]
         log['stamp'] = int(log['stamp'])
         if not log['size'] is None:
             log['size'] = int(log['size'])
@@ -748,7 +779,18 @@ class exp_res(object):
 
     def _topology(self):
         """A string repr of the topology"""
-        return '{scale}+{fat}+{drawer}'.format(**self.params)
+        if 'fat_features' in self.stages:
+            return '{scale}+{fat}+{drawer}'.format(**self.params)
+        elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.SpoutOnly':
+            return '1+1'
+        elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.SplitDNNTopology':
+            return '{scale}+{facedetect}+{dnnforward}+{dnnclassify}+{drawer}'.format(**self.params)
+        elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.ObjTrackingTopology':
+            return '{scale}+1+{drawer}'.format(**self.params)
+        elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.E3_MultipleFeaturesTopology':
+            return '{scale}+{face}+{sift}+1+{drawer}'
+        else:
+            return 'unknown'
 
     def _load_params(self, params_path):
         """Load parameters"""
@@ -763,15 +805,23 @@ class exp_res(object):
                     self.params['cpu_per_node'] = line.split('=')[1]
                 else:
                     self.params['topology_class'] = line
+        if 'topology_class' not in self.params:
+            print('ERROR: topology_class not found!!!')
+            raise TypeError('topology_class not found for {}'.format(self.exp_name))
+        self.stages = topology_stage_map[self.params['topology_class']]
         # node count
         nodes = set()
         for log in flattened(self.tidy_logs):
             nodes.add(log['machine'])
         self.params['nodes'] = nodes
         # parse numbers
-        for key in ['fps', 'scale', 'fat', 'drawer']:
+        for key in ['fps', 'scale', 'fat', 'drawer', 'batch-size']:
             if key in self.params:
                 self.params[key] = int(self.params[key])
+
+    def _ensure_stage_info(self):
+        """Use correct stage info"""
+        update_stage_info(self.stages)
 
     def _select(self, seq, raw=False):
         """Select a subset of frames using seq"""
@@ -790,6 +840,7 @@ class exp_res(object):
 
     def show_log(self, seq=None):
         """Print raw log entries"""
+        self._ensure_stage_info()
         if seq is not None and not isinstance(seq, list):
             seq = [seq]
         elif seq is None:
@@ -800,6 +851,7 @@ class exp_res(object):
 
     def show_frame(self, seq=None, raw=True):
         """Print frame entries"""
+        self._ensure_stage_info()
         for frame in self._select(seq, raw)[0]:
             print('Seq: {:<5}\tRetries: {:<2}\tFailed: {}'
                   .format(frame['seq'], len(frame['retries']), frame['failed']))
@@ -810,10 +862,12 @@ class exp_res(object):
 
     def param_core(self):
         """Get cores"""
+        self._ensure_stage_info()
         return int(self.params['scale']) + int(self.params['fat']) + int(self.params['drawer']) + 3
 
     def latency(self, seq=None, title=None, **kwargs):
         """Print and plot selected frames. seq can be a list or a single number"""
+        self._ensure_stage_info()
         frames, frame_seqs = self._select(seq)
         p = latency_plot(frames, **kwargs)
         if title is None:
@@ -826,6 +880,7 @@ class exp_res(object):
 
     def seq_latency(self, stage='total', seq=None, **kwargs):
         """Plot latency to seq"""
+        self._ensure_stage_info()
         p = time_latency_plot(self._select(seq)[0], stage, **kwargs)
         p.figure.canvas.set_window_title('Exp: {}'.format(self.exp_name))
         p.figure.tight_layout()
@@ -833,6 +888,7 @@ class exp_res(object):
 
     def fps(self, point=None, step=1000, **kwargs):
         """Plot FPS at stage"""
+        self._ensure_stage_info()
         if point is None:
             point = [('Entering', 'spout'), ('Ack', 'ack')]
         p = fps_plot(self.tidy_logs, point=point, step=step, **kwargs)
@@ -842,6 +898,7 @@ class exp_res(object):
 
     def cpu(self, which=None, **kwargs):
         """Plot CPU usage"""
+        self._ensure_stage_info()
         p = cpu_plot(self.cpus, which, **kwargs)
         p.canvas.set_window_title('Exp: {}'.format(self.exp_name))
         p.tight_layout()
@@ -849,6 +906,7 @@ class exp_res(object):
 
     def avg_fps(self, stage='spout', evt='Entering', trim=False, limit=None):
         """Calculate average fps"""
+        self._ensure_stage_info()
         fpses = compute_fps(self.tidy_logs, stage, evt)
         if limit is not None:
             fpses = fpses[:limit]
@@ -858,6 +916,7 @@ class exp_res(object):
 
     def avg_latency(self, which=None, useLinregress=True, detail=False):
         """Calculate average latency"""
+        self._ensure_stage_info()
         if which is None:
             which = 'total'
         def avg1():
