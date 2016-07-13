@@ -99,8 +99,8 @@ zookeeper_path = '/home/peifeng/tools/zookeeper'
 accounting_py = '/home/peifeng/work/accounting.py'
 
 # path to input files on remote server
-input_image = '/home/peifeng/work/frame.1080x1920.png'
-input_video = '/home/peifeng/work/Breaking_Dawn_Part2_trailer.mp4'
+input_image = '/home/peifeng/work/data/frame.320x240.jpg'
+input_video = '/home/peifeng/work/data/Vid_A_ball.avi'
 
 # runtime path for zookeeper
 runtime_dir = os.path.join(work_dir, 'run')
@@ -114,7 +114,21 @@ max_cpu_cores = {
     'clarity26': 32,
 }
 
-saved_params_file = 'saved_params.pickle'
+#saved_params_file = 'saved_params.pickle'
+saved_params_file = None
+
+# ====================================================================
+# Topology Info Configurations
+# ====================================================================
+topology_class2id = {
+    'nl.tno.stormcv.deploy.SpoutOnly': 'spout_only',
+    'nl.tno.stormcv.deploy.SplitDnnTopology': 'dnn_classify_split',
+    'nl.tno.stormcv.deploy.ObjTrackingTopology': 'object_tracking',
+    'nl.tno.stormcv.deploy.E4_SequentialFeaturesTopology': 'face_detection',
+    'nl.tno.stormcv.deploy.E3_MultipleFeaturesTopology': 'feature_extraction',
+    'nl.tno.stormcv.deploy.DNNTopology': 'dnn_classification',
+    'nl.tno.stormcv.deploy.BatchDNNTopology': 'dnn_classification_batch',
+}
 
 def wait_with_progress(max_sec, msg=None, resolution=1):
     """Wait with a nice progress bar"""
@@ -433,14 +447,6 @@ def storm(action=None, configuration=None):
 @task
 def fetch_log(configuration, saved_params=None):
     """Fetch logs from server"""
-    log_dir = os.path.join(time.strftime("archive/%Y-%-m-%d/"), '{}')
-
-    num = 1
-    while os.path.exists(log_dir.format(num)):
-        num += 1
-    log_dir = log_dir.format(num)
-    os.makedirs(log_dir, exist_ok=True)
-
     if saved_params is None:
         if os.path.exists(saved_params_file):
             with open(saved_params_file, 'rb') as f:
@@ -453,8 +459,17 @@ def fetch_log(configuration, saved_params=None):
         params = {}
     else:
         params = saved_params.pop()
-    with open(saved_params_file, 'wb') as f:
-        pickle.dump(saved_params, f)
+
+    log_dir = os.path.join(time.strftime("archive/%Y-%-m-%d/"), '{}-{}')
+    num = 1
+    while os.path.exists(log_dir.format(topology_class2id[params['topo']], num)):
+        num += 1
+    log_dir = log_dir.format(topology_class2id[params['topo']], num)
+    os.makedirs(log_dir, exist_ok=True)
+
+    if saved_params_file is not None:
+        with open(saved_params_file, 'wb') as f:
+            pickle.dump(saved_params, f)
     with open(os.path.join(log_dir, 'params.txt'), 'w') as f:
         for key in params.keys():
             if key == 'args':
@@ -589,7 +604,7 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
 
     least = int(least)
 
-    if os.path.exists(saved_params_file):
+    if saved_params_file is not None and os.path.exists(saved_params_file):
         with open(saved_params_file, 'rb') as f:
             saved_params = pickle.load(f)
     else:
@@ -613,29 +628,68 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
     wait_with_progress(60 * least, 'Running', resolution=2)
 
     with hide('stdout'):
-        execute(kill_exp, topology_id='dnn_classification', configuration=configuration)
+        execute(kill_exp, topology_id=topology_class2id[topology], configuration=configuration)
         execute(limit_cpu, hosts=host_list(configuration))
 
-    with open(saved_params_file, 'wb') as f:
-        pickle.dump(saved_params, f)
+    if saved_params_file is not None:
+        with open(saved_params_file, 'wb') as f:
+            pickle.dump(saved_params, f)
 
     print('saved_params is', saved_params)
-    execute(fetch_log, configuration=configuration)
+    execute(fetch_log, saved_params=saved_params, configuration=configuration)
 
 @task
 def batch_run():
     """Batch run"""
-    configuration = 'all'
-    topology = ['DNNTopology']
+    configuration = 'clarity26'
+    topology = ['ObjTrackingTopology']
     cores = [32]
     args = [
-        'num-workers=2',
-        'fetcher=image',
-        'use-caffe=1',
-        'use-gpu=0',
-        ['fps=13', 'fps=13', 'fps=13'],
+        'num-workers=1',
+        ['fetcher=video'],
+        ['fps=5', 'fps=10', 'fps=15', 'fps=20'],
         #['fps=3', 'fps=4',],
         #['fps=13'],
+        'auto-sleep=0',
+        'msg-timeout=1000000',
+        'max-spout-pending=10000',
+        'roi=209,117,36,43',
+        ['scale=4'],
+        #['scale=1'],
+        #['fat=27', 'fat=28', 'fat=29', 'fat=30', 'fat=31', 'fat=32'],
+        #['fat=40', 'fat=50', 'fat=60', 'fat=80', 'fat=100'],
+        #['fat=14', 'fat=16', 'fat=18', 'fat=20'],
+        #['fat=80', 'fat=58', 'fat=68'],
+        #['fat=80', 'fat=1005],
+        #['objtrack=1',],
+        'drawer=4'
+        #'drawer=1'
+    ]
+
+    for idx, arg in enumerate(args):
+        if not isinstance(arg, list):
+            args[idx] = [arg]
+
+    for combo in itertools.product(topology, cores, *args):
+        print('combo: ', combo)
+        execute(run_exp, configuration, least=2, *combo)
+
+@task
+def batch_run_gpu():
+    """Batch run"""
+    configuration = 'clarity24'
+    topology = ['BatchDNNTopology']
+    cores = [24]
+    args = [
+        'num-workers=1',
+        'fetcher=image',
+        'use-caffe=1',
+        ['use-gpu=1'],
+        ['batch-size=1', 'batch-size=2', 'batch-size=3', 'batch-size=4', 'batch-size=5'],
+        #['batch-size=1'],
+        ['fps=5', 'fps=10', 'fps=15'],
+        #['fps=3', 'fps=4',],
+        #['fps=5'],
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
@@ -645,8 +699,8 @@ def batch_run():
         #['fat=40', 'fat=50', 'fat=60', 'fat=80', 'fat=100'],
         #['fat=14', 'fat=16', 'fat=18', 'fat=20'],
         #['fat=80', 'fat=58', 'fat=68'],
-        #['fat=80', 'fat=100'],
-        ['fat=60',],
+        #['fat=80', 'fat=1005],
+        ['fat=1',],
         'drawer=1'
         #'drawer=1'
     ]
@@ -657,4 +711,5 @@ def batch_run():
 
     for combo in itertools.product(topology, cores, *args):
         print('combo: ', combo)
-        execute(run_exp, configuration, *combo)
+        execute(run_exp, configuration, least=2, *combo)
+

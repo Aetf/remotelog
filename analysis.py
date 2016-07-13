@@ -15,6 +15,8 @@ import seaborn as sns
 from scipy.stats import f_oneway, linregress
 
 global_debug = False
+global_skipOp = True
+
 topology_stage_map = {
     'nl.tno.stormcv.deploy.DNNTopology':
         ['spout', 'scale', 'fat_features', 'drawer', 'streamer', 'ack'],
@@ -38,9 +40,10 @@ full_stages = []
 categories = []
 cat2idx = {}
 
-def update_stage_info(new_stages):
+def update_stage_info(topology_class):
     """Recompute stage info"""
-    global stages, stages2idx, full_stages, categories, cat2idx
+    global stages, stages2idx, full_stages, categories, cat2idx, global_skipOp
+    new_stages = topology_stage_map[topology_class]
     stages = new_stages
     stages2idx = {stages[idx]: idx for idx in range(0, len(stages))}
 
@@ -53,7 +56,13 @@ def update_stage_info(new_stages):
     categories = ['waiting'] + full_stages + ['finished', 'failed']
     cat2idx = {categories[idx]: idx for idx in range(0, len(categories))}
 
-update_stage_info(stages)
+    if topology_class == 'nl.tno.stormcv.deploy.DNNTopology':
+        global_skipOp = False
+    else:
+        print("Skipping op event")
+        global_skipOp = True
+
+update_stage_info('nl.tno.stormcv.deploy.DNNTopology')
 
 def prev_stage(stage):
     """Previous stage"""
@@ -82,6 +91,10 @@ def read_log(filename, pattern):
 
 def correct_log_type(logs):
     """Correct log entry data types"""
+    if global_skipOp:
+        logs = [log for log in logs
+                if log['evt'] != 'OpBegin' and log['evt'] != 'OpEnd']
+
     for log in logs:
         log['req'] = int(log['req'])
         log['seq'] = int(log['seq'])
@@ -121,17 +134,19 @@ def group_by(logs, attr):
 
 def frame_key_getter(*args):
     """Return frame compare key"""
-    def getter(frame):
+    def getter(frame_log_entry):
         """Inner"""
         keys = []
         for k in args:
             if k == 'stage':
-                if frame['stage'] in stages2idx:
-                    keys.append(stages2idx[frame[k]])
+                if frame_log_entry['stage'] in stages2idx:
+                    keys.append(stages2idx[frame_log_entry[k]])
                 else:
+                    print('Unknown stage {}, full log: {}'.format(frame_log_entry['stage'],
+                                                                  frame_log_entry))
                     keys.append(stages2idx['fat_features']+0.5)
             else:
-                keys.append(frame[k])
+                keys.append(frame_log_entry[k])
         return tuple(keys)
     return getter
 
@@ -319,7 +334,7 @@ def collect_log(log_dir=None):
         print('Collect cpu log from', cpu_log, file=sys.stderr)
         cpus[machine] = load_cpu(cpu_log)
 
-    correct_log_type(logs)
+    logs = correct_log_type(logs)
     tidy_logs, corrected_counter = zip(*[tidy_frame_logs(per_frame, debug=global_debug)
                                          for per_frame in group_by_frame(logs)])
     print('Auto fixed cross stage timming issues for {} log entries'
@@ -362,21 +377,23 @@ def check_frame(frame, debug=False):
     for trial in frame['retries']:
         in_stage = False
         last_stage = None
-        for evt, stage_idx, _ in trial:
+        for evt, curr_stage, _ in trial:
             if evt == 'Entering' and not in_stage:
-                if last_stage is not None and next_stage(last_stage) != stage_idx:
+                if last_stage is not None and next_stage(last_stage) != curr_stage:
                     if debug:
-                        print('Non consecutive stage for frame', frame['seq'], file=sys.stderr)
+                        print('Non consecutive stage for frame {}, current {}, last {}'
+                              .format(frame['seq'], curr_stage, last_stage),
+                              file=sys.stderr)
                     # Non consecutive stage
                     return False
-                last_stage = stage_idx
+                last_stage = curr_stage
                 in_stage = True
             elif evt == 'Leaving' and in_stage:
-                if last_stage != stage_idx:
+                if last_stage != curr_stage:
                     # Non consecutive stage entering/leaving
                     if debug:
                         print('Non consecutive stage entering/leaving for frame', frame['seq'],
-                              ': last', last_stage, 'leaving', stage_idx, file=sys.stderr)
+                              ': last', last_stage, 'leaving', curr_stage, file=sys.stderr)
                     return False
                 in_stage = False
             elif evt == 'OpBegin':
@@ -830,7 +847,7 @@ class exp_res(object):
 
     def _ensure_stage_info(self):
         """Use correct stage info"""
-        update_stage_info(self.stages)
+        update_stage_info(self.params['topology_class'])
 
     def _select(self, seq, raw=False):
         """Select a subset of frames using seq"""
