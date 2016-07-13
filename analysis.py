@@ -19,7 +19,7 @@ topology_stage_map = {
     'nl.tno.stormcv.deploy.DNNTopology':
         ['spout', 'scale', 'fat_features', 'drawer', 'streamer', 'ack'],
     'nl.tno.stormcv.deploy.BatchDNNTopology':
-        ['spout', 'scale', 'fat_features', 'drawer', 'streamer', 'ack'],
+        ['spout', 'scale', 'dnn_forward', 'drawer', 'streamer', 'ack'],
     'nl.tno.stormcv.deploy.SpoutOnly':
         ['spout', 'noop', 'ack'],
     'nl.tno.stormcv.deploy.SplitDNNTopology':
@@ -461,8 +461,10 @@ def compute_latency(frames):
             avg_latency[k] = avg_latency[k] + latencies[k]
             latencies[k] = sum(latencies[k])/len(latencies[k])
         latencies = defaultdict(int, latencies)
-        latencies['service'] = (latencies['scale'] + latencies['fat_features']
-                                + latencies['drawer'] + latencies['streamer'])
+        latencies['service'] = 0
+        for st in stages:
+            if st != 'spout' and st != 'ack':
+                latencies['service'] += latencies[st]
         frame['latencies'] = latencies
 
     if anomaly_cnt > 0:
@@ -761,11 +763,21 @@ class exp_res(object):
     """An object holds all parsed logs for one experiment"""
     def __init__(self, exp_name):
         self.exp_name = exp_name
+
         log_dir = 'archive/{}'.format(exp_name)
+        self._load_params(os.path.join(log_dir, 'params.txt'))
+
+        self._ensure_stage_info()
         (self.tidy_logs, self.frames, self.clean_frames,
          self.distributions, self.cpus, self.raw_logs) = run(log_dir)
+
+        # node count
+        nodes = set()
+        for log in flattened(self.tidy_logs):
+            nodes.add(log['machine'])
+        self.params['nodes'] = nodes
+
         self.seqs = sorted([f['seq'] for f in self.clean_frames])
-        self._load_params(os.path.join(log_dir, 'params.txt'))
 
     def __str__(self):
         """Print"""
@@ -780,6 +792,8 @@ class exp_res(object):
     def _topology(self):
         """A string repr of the topology"""
         if 'fat_features' in self.stages:
+            return '{scale}+{fat}+{drawer}'.format(**self.params)
+        elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.BatchDNNTopology':
             return '{scale}+{fat}+{drawer}'.format(**self.params)
         elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.SpoutOnly':
             return '1+1'
@@ -809,11 +823,6 @@ class exp_res(object):
             print('ERROR: topology_class not found!!!')
             raise TypeError('topology_class not found for {}'.format(self.exp_name))
         self.stages = topology_stage_map[self.params['topology_class']]
-        # node count
-        nodes = set()
-        for log in flattened(self.tidy_logs):
-            nodes.add(log['machine'])
-        self.params['nodes'] = nodes
         # parse numbers
         for key in ['fps', 'scale', 'fat', 'drawer', 'batch-size']:
             if key in self.params:
@@ -890,7 +899,7 @@ class exp_res(object):
         """Plot FPS at stage"""
         self._ensure_stage_info()
         if point is None:
-            point = [('Entering', 'spout'), ('Ack', 'ack')]
+            point = [('Entering', 'spout'), ('Leaving', 'streamer')]
         p = fps_plot(self.tidy_logs, point=point, step=step, **kwargs)
         p.figure.canvas.set_window_title('Exp: {}'.format(self.exp_name))
         p.figure.tight_layout()
@@ -947,8 +956,8 @@ class exp_res(object):
             mid_idx = int(len(self.seqs) * sample_ratio * 2)
             ed_idx = int(len(self.seqs) * sample_ratio * 3)
             samples = []
-            samples.append(self._select(self[0].seqs[st_idx:mid_idx]))
-            samples.append(self._select(self[0].seqs[mid_idx:ed_idx]))
+            samples.append(self._select(self.seqs[st_idx:mid_idx])[0])
+            samples.append(self._select(self.seqs[mid_idx:ed_idx])[0])
             # sampled latencies
             lats = [[f['latencies'][which] for f in sample if which in f['latencies']]
                     for sample in samples]
