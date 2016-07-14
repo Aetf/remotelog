@@ -684,7 +684,7 @@ def batch_run_gpu():
         'num-workers=1',
         'fetcher=image',
         'use-caffe=1',
-        ['use-gpu=1'],
+        ['use-gpu=2'],
         ['batch-size=1', 'batch-size=2', 'batch-size=3', 'batch-size=4', 'batch-size=5'],
         #['batch-size=1'],
         ['fps=5', 'fps=10', 'fps=15'],
