@@ -59,7 +59,6 @@ def update_stage_info(topology_class):
     if topology_class == 'nl.tno.stormcv.deploy.DNNTopology':
         global_skipOp = False
     else:
-        print("Skipping op event")
         global_skipOp = True
 
 update_stage_info('nl.tno.stormcv.deploy.DNNTopology')
@@ -996,6 +995,12 @@ class cross_res(object):
     """Cross analysis of multiple runs of experiments"""
     def __init__(self, *args):
         self.exps = [exp_res(arg) for arg in args]
+
+    def filter(self, predict):
+        """Return a subset of experiments"""
+        res = cross_res()
+        res.exps = [exp for exp in self.exps if predict(exp)]
+        return res
 
     def latency(self, which='total', x=None, **kwargs):
         """Average latency"""

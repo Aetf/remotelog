@@ -569,10 +569,11 @@ def kill_topology(topology_id, wait_time=60):
                     break
 
 @task
-def kill_exp(configuration, topology_id=None):
+def kill_exp(configuration, topology_id=None, wait=1):
     """Kill running experiment"""
     if topology_id is not None:
-        execute(kill_topology, topology_id=topology_id, host=main_host(configuration))
+        execute(kill_topology, topology_id=topology_id, wait_time=wait,
+                host=main_host(configuration))
     execute(storm, action='stop', configuration=configuration)
     execute(cpu_monitor, action='stop', hosts=host_list(configuration))
 
@@ -628,7 +629,8 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
     wait_with_progress(60 * least, 'Running', resolution=2)
 
     with hide('stdout'):
-        execute(kill_exp, topology_id=topology_class2id[topology], configuration=configuration)
+        execute(kill_exp, topology_id=topology_class2id[topology], wait=30,
+                configuration=configuration)
         execute(limit_cpu, hosts=host_list(configuration))
 
     if saved_params_file is not None:
@@ -646,10 +648,10 @@ def batch_run():
     cores = [32]
     args = [
         'num-workers=1',
-        ['fetcher=video'],
-        ['fps=5', 'fps=10', 'fps=15', 'fps=20'],
-        #['fps=3', 'fps=4',],
-        #['fps=13'],
+        ['fetcher=image'],
+        ['fps=25', 'fps=29', 'fps=30', 'fps=31', 'fps=40', 'fps=50', 'fps=65', 'fps=80', 'fps=100'],
+        #['fps=45', 'fps=50', 'fps=75'],
+        #['fps=35'],
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
@@ -684,24 +686,24 @@ def batch_run_gpu():
         'num-workers=1',
         'fetcher=image',
         'use-caffe=1',
-        ['use-gpu=2'],
+        ['use-gpu=1'],
         ['batch-size=1', 'batch-size=2', 'batch-size=3', 'batch-size=4', 'batch-size=5'],
         #['batch-size=1'],
-        ['fps=5', 'fps=10', 'fps=15'],
+        #['fps=15', 'fps=20', 'fps=25', 'fps=30', 'fps=45'],
         #['fps=3', 'fps=4',],
-        #['fps=5'],
+        ['fps=15'],
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
-        ['scale=1'],
+        ['scale=3'],
         #['scale=1'],
         #['fat=27', 'fat=28', 'fat=29', 'fat=30', 'fat=31', 'fat=32'],
         #['fat=40', 'fat=50', 'fat=60', 'fat=80', 'fat=100'],
         #['fat=14', 'fat=16', 'fat=18', 'fat=20'],
         #['fat=80', 'fat=58', 'fat=68'],
         #['fat=80', 'fat=1005],
-        ['fat=1',],
-        'drawer=1'
+        ['fat=2',],
+        'drawer=3'
         #'drawer=1'
     ]
 
