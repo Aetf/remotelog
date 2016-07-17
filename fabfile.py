@@ -649,8 +649,8 @@ def batch_run():
     args = [
         'num-workers=1',
         ['fetcher=image'],
-        ['fps=25', 'fps=29', 'fps=30', 'fps=31', 'fps=40', 'fps=50', 'fps=65', 'fps=80', 'fps=100'],
-        #['fps=45', 'fps=50', 'fps=75'],
+        #['fps=25', 'fps=29', 'fps=30', 'fps=40', 'fps=50', 'fps=65', 'fps=80', 'fps=100'],
+        ['fps=100', 'fps=100', 'fps=100', 'fps=100', 'fps=100'],
         #['fps=35'],
         'auto-sleep=0',
         'msg-timeout=1000000',
