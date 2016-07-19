@@ -95,8 +95,8 @@ def _globpattern():
 
 def read_log(filename, pattern):
     """Read log entries from file"""
-    with open(filename) as f:
-        lines = f.readlines()
+    with open(filename) as file:
+        lines = file.readlines()
     return [pattern.match(line).groupdict() for line in lines if pattern.match(line)]
 
 
@@ -243,19 +243,18 @@ def tidy_frame_logs(logs_per_frame, debug=False):
                       'difference {}'.format(res[idx]['seq'], res[idx-1]['stage'],
                                              res[idx]['stage'], diff), file=sys.stderr)
             (res[idx]['stamp'],
-             res[idx+1]['stamp'],
-             res[idx+2]['stamp']) = (res[idx+2]['stamp'],
-                                     res[idx+2]['stamp'],
-                                     res[idx]['stamp'])
+             res[idx + 1]['stamp'],
+             res[idx + 2]['stamp']) = (res[idx + 2]['stamp'],
+                                       res[idx + 2]['stamp'],
+                                       res[idx]['stamp'])
             counter += 1
-        elif (res[idx]['evt'] == 'Leaving'
-              and res[idx-1]['evt'] == 'Entering'
+        elif (res[idx]['evt'] == 'Leaving' and
+              res[idx - 1]['evt'] == 'Entering' and
               # important, we only handle cases that not handled in first clause
-              and res[idx-2]['evt'] != 'Entering'
-              and res[idx-1]['stage'] == res[idx+1]['stage']
-              and res[idx-1]['seq'] == res[idx]['seq']
-              and res[idx]['seq'] == res[idx+1]['seq']
-             ):
+              res[idx - 2]['evt'] != 'Entering' and
+              res[idx - 1]['stage'] == res[idx + 1]['stage'] and
+              res[idx - 1]['seq'] == res[idx]['seq'] and
+              res[idx]['seq'] == res[idx + 1]['seq']):
             #    Enter A
             #    .....
             #    Enter B
