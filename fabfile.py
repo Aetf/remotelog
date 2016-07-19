@@ -128,6 +128,7 @@ topology_class2id = {
     'nl.tno.stormcv.deploy.E3_MultipleFeaturesTopology': 'feature_extraction',
     'nl.tno.stormcv.deploy.DNNTopology': 'dnn_classification',
     'nl.tno.stormcv.deploy.BatchDNNTopology': 'dnn_classification_batch',
+    'nl.tno.stormcv.deploy.LoopTopology': 'simple_loop',
 }
 
 def wait_with_progress(max_sec, msg=None, resolution=1):
@@ -644,17 +645,20 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
 def batch_run():
     """Batch run"""
     configuration = 'clarity26'
-    topology = ['ObjTrackingTopology']
+    topology = ['LoopTopology']
     cores = [32]
     args = [
         'num-workers=1',
         ['fetcher=image'],
         #['fps=25', 'fps=29', 'fps=30', 'fps=40', 'fps=50', 'fps=65', 'fps=80', 'fps=100'],
-        ['fps=100', 'fps=100', 'fps=100', 'fps=100', 'fps=100'],
-        #['fps=35'],
+        #['fps=100', 'fps=100', 'fps=100', 'fps=100', 'fps=100'],
+        ['fps=100', 'fps=105', 'fps=110'],
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
+        'sliding-win=100',
+        'sliding-wait=10',
+        'force-single-frame=0',
         'roi=209,117,36,43',
         ['scale=4'],
         #['scale=1'],

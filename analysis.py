@@ -45,6 +45,17 @@ full_stages = []
 categories = []
 cat2idx = {}
 
+
+def prev_stage(stage):
+    """Previous stage"""
+    return stages[stages2idx[stage] - 1]
+
+
+def next_stage(stage):
+    """Next stage"""
+    return stages[stages2idx[stage] + 1]
+
+
 def update_stage_info(topology_class):
     """Recompute stage info"""
     global stages, stages2idx, full_stages, categories, cat2idx, global_skipOp
@@ -57,6 +68,11 @@ def update_stage_info(topology_class):
         full_stages.append(_cur)
         full_stages.append(_cur + '-' + _nxt)
     full_stages.append(stages[-1])
+    for stage in stages:
+        if stage.endswith('batcher'):
+            s = stage + '-' + next_stage(stage)
+            if s in full_stages:
+                full_stages.remove(s)
 
     categories = ['waiting'] + full_stages + ['finished', 'failed']
     cat2idx = {categories[idx]: idx for idx in range(0, len(categories))}
@@ -67,15 +83,6 @@ def update_stage_info(topology_class):
         global_skipOp = True
 
 update_stage_info('nl.tno.stormcv.deploy.DNNTopology')
-
-def prev_stage(stage):
-    """Previous stage"""
-    return stages[stages2idx[stage] - 1]
-
-
-def next_stage(stage):
-    """Next stage"""
-    return stages[stages2idx[stage] + 1]
 
 
 globpattern = None
@@ -443,21 +450,21 @@ def compute_latency(frames):
         for trial in frame['retries']:
             _, _, last_stamp = trial[0]
             last_op_stamp = -1
-            for evt, stage_idx, stamp in trial[1:]:
+            for evt, stage_name, stamp in trial[1:]:
                 if evt == 'Entering':
-                    if prev_stage(stage_idx).endswith('batcher'):
+                    if prev_stage(stage_name).endswith('batcher'):
                         # we know there's no latency between batcher and the following stage
                         continue
                     # Cross stage latency
                     latency = stamp - last_stamp
-                    key = '{}-{}'.format(prev_stage(stage_idx), stage_idx)
+                    key = '{}-{}'.format(prev_stage(stage_name), stage_name)
                     latencies[key].append(latency)
                     last_stamp = stamp
                 elif evt == 'Leaving':
                     # In stage latency
                     latency = stamp - last_stamp
-                    latencies[stage_idx].append(latency)
-                    if stage_idx == 'streamer':
+                    latencies[stage_name].append(latency)
+                    if stage_name == 'streamer':
                         # The frame left the last stage, compute total latency
                         latency = stamp - trial[0][2]
                         latencies['total'].append(latency)
@@ -467,13 +474,13 @@ def compute_latency(frames):
                 elif evt == 'OpEnd':
                     # In frameOp latency
                     latency = stamp - last_op_stamp
-                    key = 'Op:{}'.format(stage_idx)
+                    key = 'Op:{}'.format(stage_name)
                     latencies[key].append(latency)
                     last_op_stamp = stamp
                 elif evt == 'Ack':
                     # Last bolt to spout ack
                     latency = stamp - last_stamp
-                    key = '{}-{}'.format(prev_stage(stage_idx), stage_idx)
+                    key = '{}-{}'.format(prev_stage(stage_name), stage_name)
                     latencies[key].append(latency)
                     last_stamp = stamp
         if not frame['failed'] is None and 'total' in latencies:
@@ -892,8 +899,8 @@ class exp_res(object):
                   .format(frame['seq'], len(frame['retries']), frame['failed']))
             for trial in frame['retries']:
                 print('------------------')
-                for evt, stage_idx, stamp in trial:
-                    print('{:<8} {:^12}: {}'.format(evt, stage_idx, stamp))
+                for evt, stage_name, stamp in trial:
+                    print('{:<8} {:^12}: {}'.format(evt, stage_name, stamp))
 
     def param_core(self):
         """Get cores"""
