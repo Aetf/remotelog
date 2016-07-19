@@ -19,22 +19,27 @@ global_skipOp = True
 
 topology_stage_map = {
     'nl.tno.stormcv.deploy.DNNTopology':
-        ['spout', 'scale', 'fat_features', 'drawer', 'streamer', 'ack'],
+        ['spout', 'scale', 'fat_features', 'drawer', 'streamer_batcher', 'streamer', 'ack'],
     'nl.tno.stormcv.deploy.BatchDNNTopology':
-        ['spout', 'scale', 'dnn_forward', 'drawer', 'streamer', 'ack'],
+        ['spout', 'scale', 'dnn_forward', 'drawer', 'streamer_batcher', 'streamer', 'ack'],
     'nl.tno.stormcv.deploy.SpoutOnly':
         ['spout', 'noop', 'ack'],
     'nl.tno.stormcv.deploy.SplitDNNTopology':
         ['spout', 'scale', 'face_detect', 'dnn_forward', 'dnn_classify',
-         'drawer', 'streamer', 'ack'],
+         'drawer', 'streamer_batcher', 'streamer', 'ack'],
     'nl.tno.stormcv.deploy.ObjTrackingTopology':
-        ['spout', 'scale', 'obj_track', 'drawer', 'streamer', 'ack'],
+        ['spout', 'scale', 'obj_track_batcher', 'obj_track',
+         'drawer', 'streamer_batcher', 'streamer', 'ack'],
+    'nl.tno.stormcv.deploy.LoopTopology':
+        ['spout', 'scale', 'obj_track_batcher', 'obj_track',
+         'drawer', 'streamer_batcher', 'streamer', 'ack'],
     'nl.tno.stormcv.deploy.E4_SequentialFeaturesTopology':
-        ['spout', 'scale', 'fat_features', 'drawer', 'streamer', 'ack'],
+        ['spout', 'scale', 'fat_features', 'drawer', 'streamer_batcher', 'streamer', 'ack'],
     'nl.tno.stormcv.deploy.E3_MultipleFeaturesTopology':
-        ['spout', 'scale', 'face', 'sift', 'combiner', 'drawer', 'streamer', 'ack'],
+        ['spout', 'scale', 'face', 'sift', 'combiner',
+         'drawer', 'streamer_batcher', 'streamer', 'ack'],
 }
-stages = ['spout', 'scale', 'fat_features', 'drawer', 'streamer', 'ack']
+stages = []
 stages2idx = {}
 full_stages = []
 categories = []
@@ -440,6 +445,9 @@ def compute_latency(frames):
             last_op_stamp = -1
             for evt, stage_idx, stamp in trial[1:]:
                 if evt == 'Entering':
+                    if prev_stage(stage_idx).endswith('batcher'):
+                        # we know there's no latency between batcher and the following stage
+                        continue
                     # Cross stage latency
                     latency = stamp - last_stamp
                     key = '{}-{}'.format(prev_stage(stage_idx), stage_idx)
@@ -816,6 +824,8 @@ class exp_res(object):
         elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.SplitDNNTopology':
             return '{scale}+{facedetect}+{dnnforward}+{dnnclassify}+{drawer}'.format(**self.params)
         elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.ObjTrackingTopology':
+            return '{scale}+1+{drawer}'.format(**self.params)
+        elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.LoopTopology':
             return '{scale}+1+{drawer}'.format(**self.params)
         elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.E3_MultipleFeaturesTopology':
             return '{scale}+{face}+{sift}+1+{drawer}'
