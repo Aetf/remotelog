@@ -107,7 +107,8 @@ def update_stage_info(topology_class, log_version=1):
     cat2idx = {categories[idx]: idx for idx in range(0, len(categories))}
 
     if topology_class == 'nl.tno.stormcv.deploy.DNNTopology':
-        global_skipOp = False
+        #global_skipOp = False
+        global_skipOp = True
     else:
         global_skipOp = True
 
