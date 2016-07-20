@@ -25,7 +25,7 @@ topology_stage_map = {
         ['spout', 'scale', 'dnn_forward_batcher', 'dnn_forward',
          'drawer', 'streamer_batcher', 'streamer', 'ack'],
     'nl.tno.stormcv.deploy.SpoutOnly':
-        ['spout', 'noop', 'ack'],
+        ['spout', 'scale', 'noop', 'ack'],
     'nl.tno.stormcv.deploy.SplitDNNTopology':
         ['spout', 'scale', 'face_detect', 'dnn_forward', 'dnn_classify',
          'drawer', 'streamer_batcher', 'streamer', 'ack'],
@@ -51,6 +51,13 @@ categories = []
 cat2idx = {}
 
 
+def last_stage():
+    """Last stage"""
+    if stages[-1] == 'ack':
+        return stages[-2]
+    return stages[-1]
+
+
 def prev_stage(stage):
     """Previous stage"""
     return stages[stages2idx[stage] - 1]
@@ -59,6 +66,16 @@ def prev_stage(stage):
 def next_stage(stage):
     """Next stage"""
     return stages[stages2idx[stage] + 1]
+
+
+def frame_time_for(frame, evt, stage, trial=0):
+    """Return time for evt, stage"""
+    trials = frame['retries']
+
+    for e, s, stamp in trials[trial]:
+        if e == evt and s == stage:
+            return stamp
+    return -1
 
 
 def update_stage_info(topology_class, log_version=1):
@@ -475,7 +492,7 @@ def compute_latency(frames):
                     # In stage latency
                     latency = stamp - last_stamp
                     latencies[stage_name].append(latency)
-                    if stage_name == 'streamer':
+                    if stage_name == last_stage():
                         # The frame left the last stage, compute total latency
                         latency = stamp - trial[0][2]
                         latencies['total'].append(latency)
@@ -702,7 +719,6 @@ def seq_any_plot(clean_frames, getter, should_include, **kwargs):
     df.loc[:, 'SequenceNr'] = [frame['seq'] for frame in ff]
     thePlot = df.plot(x='SequenceNr', **kwargs)
     thePlot.set_xlabel('SequenceNr')
-    thePlot.set_ylabel('Latency (ms)')
     thePlot.get_xaxis().set_major_locator(mpl.ticker.MaxNLocator(integer=True))
     thePlot.figure.tight_layout()
     return thePlot
@@ -723,7 +739,9 @@ def time_latency_plot(clean_frames, stage='total', **kwargs):
         """should include"""
         return set.issubset(set(stage), frame['latencies'].keys())
 
-    return seq_any_plot(clean_frames, getter, should_include, **kwargs)
+    thePlot = seq_any_plot(clean_frames, getter, should_include, **kwargs)
+    thePlot.set_ylabel('Latency (ms)')
+    return thePlot
 
 
 def latency_plot(clean_frames, latencies=None, **kwargs):
@@ -953,6 +971,17 @@ class exp_res(object):
             p.set_title('Frame {}'.format(str_range(frame_seqs) if seq is not None else 'All'))
         else:
             p.set_title(title)
+        p.figure.canvas.set_window_title('Exp: {}'.format(self.exp_name))
+        p.figure.tight_layout()
+        return p
+
+    def seq_plot(self, getter, should_include=None, seq=None, **kwargs):
+        """Plot against seq"""
+        self._ensure_stage_info()
+        if should_include is None:
+            should_include = lambda frame: True
+
+        p = seq_any_plot(self._select(seq)[0], getter, should_include, **kwargs)
         p.figure.canvas.set_window_title('Exp: {}'.format(self.exp_name))
         p.figure.tight_layout()
         return p
