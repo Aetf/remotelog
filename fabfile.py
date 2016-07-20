@@ -129,6 +129,7 @@ topology_class2id = {
     'nl.tno.stormcv.deploy.DNNTopology': 'dnn_classification',
     'nl.tno.stormcv.deploy.BatchDNNTopology': 'dnn_classification_batch',
     'nl.tno.stormcv.deploy.LoopTopology': 'simple_loop',
+    'nl.tno.stormcv.deploy.CaptionerTopology': 'captioning'
 }
 
 def wait_with_progress(max_sec, msg=None, resolution=1):
@@ -641,6 +642,7 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
     print('saved_params is', saved_params)
     execute(fetch_log, saved_params=saved_params, configuration=configuration)
 
+
 @task
 def batch_run():
     """Batch run"""
@@ -652,7 +654,7 @@ def batch_run():
         ['fetcher=image'],
         #['fps=25', 'fps=29', 'fps=30', 'fps=40', 'fps=50', 'fps=65', 'fps=80', 'fps=100'],
         #['fps=100', 'fps=100', 'fps=100', 'fps=100', 'fps=100'],
-        ['fps=100', 'fps=105', 'fps=110'],
+        ['fps=115', 'fps=120', 'fps=125'],
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
@@ -680,25 +682,29 @@ def batch_run():
         print('combo: ', combo)
         execute(run_exp, configuration, least=2, *combo)
 
+
 @task
 def batch_run_gpu():
     """Batch run"""
-    configuration = 'clarity24'
+    configuration = 'clarity26'
     topology = ['BatchDNNTopology']
     cores = [24]
     args = [
         'num-workers=1',
         'fetcher=image',
         'use-caffe=1',
-        ['use-gpu=1'],
-        ['batch-size=1', 'batch-size=2', 'batch-size=3', 'batch-size=4', 'batch-size=5'],
-        #['batch-size=1'],
+        ['use-gpu=0'],
+        #['batch-size=1', 'batch-size=2', 'batch-size=3', 'batch-size=4', 'batch-size=5'],
+        ['batch-size=3'],
         #['fps=15', 'fps=20', 'fps=25', 'fps=30', 'fps=45'],
         #['fps=3', 'fps=4',],
         ['fps=15'],
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
+        'sliding-win=100',
+        'sliding-wait=10',
+        'force-single-frame=0',
         ['scale=3'],
         #['scale=1'],
         #['fat=27', 'fat=28', 'fat=29', 'fat=30', 'fat=31', 'fat=32'],
@@ -706,7 +712,7 @@ def batch_run_gpu():
         #['fat=14', 'fat=16', 'fat=18', 'fat=20'],
         #['fat=80', 'fat=58', 'fat=68'],
         #['fat=80', 'fat=1005],
-        ['fat=2',],
+        ['fat=50',],
         'drawer=3'
         #'drawer=1'
     ]
@@ -719,3 +725,65 @@ def batch_run_gpu():
         print('combo: ', combo)
         execute(run_exp, configuration, least=2, *combo)
 
+
+@task
+def batch_run_cap():
+    """Batch run"""
+    configuration = 'clarity24'
+    topology = ['CaptionerTopology']
+    cores = [24]
+    args = [
+        'num-workers=1',
+        'fetcher=image',
+        'use-gpu=2',
+        'cap-use-gpu=2',
+
+        'min-group-size=10',
+        'max-group-size=300',
+
+        #['fps=15', 'fps=20', 'fps=25', 'fps=30', 'fps=45'],
+        #['fps=3', 'fps=4',],
+        ['fps=15'],
+
+        'auto-sleep=0',
+        'msg-timeout=1000000',
+        'max-spout-pending=10000',
+
+        'scale=1',
+        'vgg=2',
+        'captioner=2'
+    ]
+
+    for idx, arg in enumerate(args):
+        if not isinstance(arg, list):
+            args[idx] = [arg]
+
+    for combo in itertools.product(topology, cores, *args):
+        print('combo: ', combo)
+        execute(run_exp, configuration, least=2, *combo)
+
+
+@task
+def batch_run_spoutonly():
+    """Batch run"""
+    configuration = 'clarity26'
+    topology = ['SpoutOnly']
+    cores = [24]
+    args = [
+        'num-workers=1',
+        'fetcher=image',
+
+        ['fps=15', 'fps=50', 'fps=100'],
+
+        'auto-sleep=0',
+        'msg-timeout=1000000',
+        'max-spout-pending=10000',
+    ]
+
+    for idx, arg in enumerate(args):
+        if not isinstance(arg, list):
+            args[idx] = [arg]
+
+    for combo in itertools.product(topology, cores, *args):
+        print('combo: ', combo)
+        execute(run_exp, configuration, least=1, *combo)
