@@ -4,6 +4,7 @@ import glob
 import os
 import sys
 import time
+from datetime import datetime as dt
 from copy import copy, deepcopy
 from collections import defaultdict
 from itertools import groupby
@@ -21,7 +22,8 @@ topology_stage_map = {
     'nl.tno.stormcv.deploy.DNNTopology':
         ['spout', 'scale', 'fat_features', 'drawer', 'streamer_batcher', 'streamer', 'ack'],
     'nl.tno.stormcv.deploy.BatchDNNTopology':
-        ['spout', 'scale', 'dnn_forward', 'drawer', 'streamer_batcher', 'streamer', 'ack'],
+        ['spout', 'scale', 'dnn_forward_batcher', 'dnn_forward',
+         'drawer', 'streamer_batcher', 'streamer', 'ack'],
     'nl.tno.stormcv.deploy.SpoutOnly':
         ['spout', 'noop', 'ack'],
     'nl.tno.stormcv.deploy.SplitDNNTopology':
@@ -38,6 +40,9 @@ topology_stage_map = {
     'nl.tno.stormcv.deploy.E3_MultipleFeaturesTopology':
         ['spout', 'scale', 'face', 'sift', 'combiner',
          'drawer', 'streamer_batcher', 'streamer', 'ack'],
+    'nl.tno.stormcv.deploy.CaptionerTopology':
+        ['spout', 'scale', 'vgg_feature', 'frame_grouper_batcher', 'frame_grouper',
+         'captioner', 'streamer', 'ack'],
 }
 stages = []
 stages2idx = {}
@@ -56,11 +61,18 @@ def next_stage(stage):
     return stages[stages2idx[stage] + 1]
 
 
-def update_stage_info(topology_class):
+def update_stage_info(topology_class, log_version=1):
     """Recompute stage info"""
     global stages, stages2idx, full_stages, categories, cat2idx, global_skipOp
     new_stages = topology_stage_map[topology_class]
-    stages = new_stages
+    stages = copy(new_stages)
+
+    if log_version < 2:
+        print('WARNING: reading log version 1 (before 2016-7-18)', file=sys.stderr)
+        for s in new_stages:
+            if s.endswith('batcher'):
+                stages.remove(s)
+
     stages2idx = {stages[idx]: idx for idx in range(0, len(stages))}
 
     full_stages = []
@@ -82,7 +94,7 @@ def update_stage_info(topology_class):
     else:
         global_skipOp = True
 
-update_stage_info('nl.tno.stormcv.deploy.DNNTopology')
+update_stage_info('nl.tno.stormcv.deploy.DNNTopology', 2)
 
 
 globpattern = None
@@ -391,8 +403,8 @@ def check_frame(frame, debug=False):
             if evt == 'Entering' and not in_stage:
                 if last_stage is not None and next_stage(last_stage) != curr_stage:
                     if debug:
-                        print('Non consecutive stage for frame {}, current {}, last {}'
-                              .format(frame['seq'], curr_stage, last_stage),
+                        print('Non consecutive stage for frame {}, last {}, current {}, should be {}'
+                              .format(frame['seq'], last_stage, curr_stage, next_stage(last_stage)),
                               file=sys.stderr)
                     # Non consecutive stage
                     return False
@@ -678,17 +690,14 @@ def cdf_plot(clean_frames, **kwargs):
     return thePlot
 
 
-def time_latency_plot(clean_frames, stage='total', **kwargs):
+def seq_any_plot(clean_frames, getter, should_include, **kwargs):
     """Plot!"""
-    if not isinstance(stage, list):
-        stage = [stage]
-
     ff = sorted(clean_frames, key=frame_key_getter('seq'))
-    ff = [frame for frame in ff
-          if set.issubset(set(stage), frame['latencies'].keys())]
+    ff = [frame for frame in ff if should_include(frame)]
+
     df = pd.DataFrame({
-        s: pd.Series([frame['latencies'][s] for frame in ff])
-        for s in stage
+        s: pd.Series([getter(frame, s) for frame in ff])
+        for s in getter(None)
     })
     df.loc[:, 'SequenceNr'] = [frame['seq'] for frame in ff]
     thePlot = df.plot(x='SequenceNr', **kwargs)
@@ -697,6 +706,24 @@ def time_latency_plot(clean_frames, stage='total', **kwargs):
     thePlot.get_xaxis().set_major_locator(mpl.ticker.MaxNLocator(integer=True))
     thePlot.figure.tight_layout()
     return thePlot
+
+
+def time_latency_plot(clean_frames, stage='total', **kwargs):
+    """Plot!"""
+    if not isinstance(stage, list):
+        stage = [stage]
+
+    def getter(frame, s=None):
+        """a getter"""
+        if frame is None:
+            return stage
+        return frame['latencies'][s]
+
+    def should_include(frame):
+        """should include"""
+        return set.issubset(set(stage), frame['latencies'].keys())
+
+    return seq_any_plot(clean_frames, getter, should_include, **kwargs)
 
 
 def latency_plot(clean_frames, latencies=None, **kwargs):
@@ -793,6 +820,15 @@ class exp_res(object):
     """An object holds all parsed logs for one experiment"""
     def __init__(self, exp_name):
         self.exp_name = exp_name
+        if exp_name.find('/') != -1:
+            cut = dt(2016, 7, 18)
+            self.exp_date = dt.strptime(exp_name[:exp_name.find('/')], "%Y-%m-%d")
+            if self.exp_date < cut:
+                self.log_version = 1
+            else:
+                self.log_version = 2
+        else:
+            self.log_version = 2
 
         log_dir = 'archive/{}'.format(exp_name)
         self._load_params(os.path.join(log_dir, 'params.txt'))
@@ -835,6 +871,8 @@ class exp_res(object):
             return '{scale}+1+{drawer}'.format(**self.params)
         elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.E3_MultipleFeaturesTopology':
             return '{scale}+{face}+{sift}+1+{drawer}'
+        elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.CaptionerTopology':
+            return '{scale}+{vgg}+1+{captioner}'
         else:
             return 'unknown'
 
@@ -862,7 +900,7 @@ class exp_res(object):
 
     def _ensure_stage_info(self):
         """Use correct stage info"""
-        update_stage_info(self.params['topology_class'])
+        update_stage_info(self.params['topology_class'], self.log_version)
 
     def _select(self, seq, raw=False):
         """Select a subset of frames using seq"""
