@@ -17,6 +17,7 @@ from scipy.stats import f_oneway, linregress
 
 global_debug = False
 global_skipOp = True
+global_skipAutoFix = False
 
 topology_stage_map = {
     'nl.tno.stormcv.deploy.DNNTopology':
@@ -43,6 +44,8 @@ topology_stage_map = {
     'nl.tno.stormcv.deploy.CaptionerTopology':
         ['spout', 'scale', 'vgg_feature', 'frame_grouper_batcher', 'frame_grouper',
          'captioner', 'streamer', 'ack'],
+    'nl.tno.stormcv.deploy.E4_SequentialFeaturesTopology':
+        ['spout', 'scale', 'fat_features','drawer', 'streamer_batcher', 'streamer', 'ack'],
 }
 stages = []
 stages2idx = {}
@@ -523,7 +526,7 @@ def compute_latency(frames):
         latencies = defaultdict(int, latencies)
         latencies['service'] = 0
         for st in stages:
-            if st != 'spout' and st != 'ack':
+            if st != 'spout' and st != 'ack' and not st.endswith('batcher'):
                 latencies['service'] += latencies[st]
         frame['latencies'] = latencies
 
@@ -889,9 +892,9 @@ class exp_res(object):
         elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.LoopTopology':
             return '{scale}+1+{drawer}'.format(**self.params)
         elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.E3_MultipleFeaturesTopology':
-            return '{scale}+{face}+{sift}+1+{drawer}'
+            return '{scale}+{face}+{sift}+1+{drawer}'.format(**self.params)
         elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.CaptionerTopology':
-            return '{scale}+{vgg}+1+{captioner}'
+            return '{scale}+{vgg}+1+{captioner}'.format(**self.params)
         else:
             return 'unknown'
 
@@ -969,7 +972,7 @@ class exp_res(object):
         frames, frame_seqs = self._select(seq)
         p = latency_plot(frames, **kwargs)
         if title is None:
-            p.set_title('Frame {}'.format(str_range(frame_seqs) if seq is not None else 'All'))
+            p.set_title('Average Latency for Frame: {}'.format(str_range(frame_seqs) if seq is not None else 'All'))
         else:
             p.set_title(title)
         p.figure.canvas.set_window_title('Exp: {}'.format(self.exp_name))
@@ -995,12 +998,16 @@ class exp_res(object):
         p.figure.tight_layout()
         return p
 
-    def fps(self, point=None, step=1000, **kwargs):
+    def fps(self, point=None, step=1000, title=None, **kwargs):
         """Plot FPS at stage"""
         self._ensure_stage_info()
         if point is None:
             point = [('Entering', 'spout'), ('Leaving', 'streamer')]
         p = fps_plot(self.tidy_logs, point=point, step=step, **kwargs)
+        if title is None:
+            p.set_title('FPS')
+        else:
+            p.set_title(title)
         p.figure.canvas.set_window_title('Exp: {}'.format(self.exp_name))
         p.figure.tight_layout()
         return p
@@ -1122,3 +1129,10 @@ class cross_res(object):
         df = df.sort_values(x_name)
         p = df.plot(x=x_name, marker='o', **kwargs)
         return p
+
+    def plot_all(self):
+        for exp in self.exps:
+            fig, axs = sns.plt.subplots(ncols=2, figsize=(15,5))
+            exp.latency(ax=axs[0])
+            exp.fps(ax=axs[1])
+            fig.suptitle(exp)
