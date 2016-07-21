@@ -735,13 +735,14 @@ def batch_run_cap():
     args = [
         'num-workers=1',
         'fetcher=image',
-        'use-gpu=2',
-        'cap-use-gpu=2',
+        ['use-gpu=2'],
+        ['cap-use-gpu=2'],
 
-        'min-group-size=10',
-        'max-group-size=300',
+        ['group-size=10', 'group-size=50', 'group-size=100'],
+        #'min-group-size=10',
+        #'max-group-size=200',
 
-        #['fps=15', 'fps=20', 'fps=25', 'fps=30', 'fps=45'],
+        #['fps=15', 'fps=20', 'fps=25'],
         #['fps=3', 'fps=4',],
         ['fps=15'],
 
@@ -749,9 +750,9 @@ def batch_run_cap():
         'msg-timeout=1000000',
         'max-spout-pending=10000',
 
-        'scale=1',
-        'vgg=2',
-        'captioner=2'
+        ['scale=3'],
+        'vgg=10',
+        'captioner=10'
     ]
 
     for idx, arg in enumerate(args):
