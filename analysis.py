@@ -924,10 +924,29 @@ class exp_res(object):
         """Use correct stage info"""
         update_stage_info(self.params['topology_class'], self.log_version)
 
-    def _select(self, seq, raw=False):
+    def _sample(self, count=1):
+        """Sample only middle part of the seqences"""
+        trim_ratio = 0.25 if len(self.seqs) > 500 else 0.05
+        st_idx = int(len(self.seqs) * trim_ratio)
+        ed_idx = int(len(self.seqs) * (1 - trim_ratio))
+
+        sample_space = self.seqs[st_idx:ed_idx]
+        sample_len = int(len(sample_space) / count)
+
+        sample_indecis = zip(range(st_idx, ed_idx, sample_len),
+                             range(st_idx + sample_len, ed_idx + sample_len, sample_len))
+        samples = []
+        for s, e in sample_indecis:
+            samples.append(self.seqs[s:e])
+        return samples
+
+    def _select(self, seq, raw=False, **kwargs):
         """Select a subset of frames using seq"""
         if seq is None:
             seq = self.seqs
+        elif seq == 'sample':
+            seq = flattened(self._sample(**kwargs))
+
         try:
             seq = set(seq)
         except TypeError:
@@ -1133,6 +1152,6 @@ class cross_res(object):
     def plot_all(self):
         for exp in self.exps:
             fig, axs = sns.plt.subplots(ncols=2, figsize=(15,5))
-            exp.latency(ax=axs[0])
+            exp.latency(seq='sample', ax=axs[0])
             exp.fps(ax=axs[1])
             fig.suptitle(exp)
