@@ -99,8 +99,14 @@ zookeeper_path = '/home/peifeng/tools/zookeeper'
 accounting_py = '/home/peifeng/work/accounting.py'
 
 # path to input files on remote server
-input_image = '/home/peifeng/work/data/frame.320x240.jpg'
-input_video = '/home/peifeng/work/data/Vid_A_ball.avi'
+input_image = [
+    '/home/peifeng/work/data/frame.320x240.jpg',
+    #'/home/peifeng/work/data/frame.1080x1920.png',
+]
+input_video = [
+    '/home/peifeng/work/data/Vid_A_ball.avi',
+    #'/home/peifeng/work/data/Vid_I_person_crossing.avi',
+]
 
 # runtime path for zookeeper
 runtime_dir = os.path.join(work_dir, 'run')
@@ -429,8 +435,8 @@ def storm_submit(topology, *args):
         project_dir
             + '/stormcv-deploy/target/stormcv-deploy-0.0.1-SNAPSHOT-jar-with-dependencies.jar',
         topology,
-        files,
     ]
+    cmd += files
     cmd += ['--'+ arg for arg in args]
     run(' '.join(cmd))
 
@@ -647,14 +653,14 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
 def batch_run():
     """Batch run"""
     configuration = 'clarity26'
-    topology = ['LoopTopology']
+    topology = ['ObjTrackingTopology']
     cores = [32]
     args = [
         'num-workers=1',
         ['fetcher=image'],
         #['fps=25', 'fps=29', 'fps=30', 'fps=40', 'fps=50', 'fps=65', 'fps=80', 'fps=100'],
         #['fps=100', 'fps=100', 'fps=100', 'fps=100', 'fps=100'],
-        ['fps=115', 'fps=120', 'fps=125'],
+        ['fps=60', 'fps=100', 'fps=110'],
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
