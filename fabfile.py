@@ -101,11 +101,11 @@ accounting_py = '/home/peifeng/work/accounting.py'
 # path to input files on remote server
 input_image = [
     '/home/peifeng/work/data/frame.320x240.jpg',
-    #'/home/peifeng/work/data/frame.1080x1920.png',
+    '/home/peifeng/work/data/frame.1080x1920.png',
 ]
 input_video = [
     '/home/peifeng/work/data/Vid_A_ball.avi',
-    #'/home/peifeng/work/data/Vid_I_person_crossing.avi',
+    '/home/peifeng/work/data/Vid_I_person_crossing.avi',
 ]
 
 # runtime path for zookeeper
@@ -470,9 +470,9 @@ def fetch_log(configuration, saved_params=None):
 
     log_dir = os.path.join(time.strftime("archive/%Y-%-m-%d/"), '{}-{}')
     num = 1
-    while os.path.exists(log_dir.format(topology_class2id[params['topo']], num)):
+    while os.path.exists(log_dir.format(params['topo-id'], num)):
         num += 1
-    log_dir = log_dir.format(topology_class2id[params['topo']], num)
+    log_dir = log_dir.format(params['topo-id'], num)
     os.makedirs(log_dir, exist_ok=True)
 
     if saved_params_file is not None:
@@ -485,7 +485,7 @@ def fetch_log(configuration, saved_params=None):
             if key == 'cpu':
                 print('cpu-per-node={}'.format(params[key]), file=f)
             else:
-                print(params[key], file=f)
+                print('{}={}'.format(key, params[key]), file=f)
         for arg in params['args']:
             print('--' + arg, file=f)
 
@@ -596,7 +596,7 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
             sudo('echo good')
 
     if not execute(uptodate, local_project, host='localhost')['localhost']:
-        utils.error('Your working copy is not clean, which cannot be fetched by remote serves')
+        utils.error('Your working copy is not clean, which cannot be fetched by remote server')
         return
 
     if topology is None:
@@ -613,12 +613,17 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
 
     least = int(least)
 
+    topology_id = topology_class2id[topology]
+    for arg in args:
+        if arg.startswith('topology-id'):
+            topology_id = arg.split('=')[1]
+
     if saved_params_file is not None and os.path.exists(saved_params_file):
         with open(saved_params_file, 'rb') as f:
             saved_params = pickle.load(f)
     else:
         saved_params = []
-    saved_params.append({'topo': topology, 'args': args, 'cpu': cpu})
+    saved_params.append({'topo': topology, 'topo-id': topology_id, 'args': args, 'cpu': cpu})
 
     with hide('stdout', 'stderr'):
         execute(kill_exp, configuration=configuration)
@@ -637,7 +642,7 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
     wait_with_progress(60 * least, 'Running', resolution=2)
 
     with hide('stdout'):
-        execute(kill_exp, topology_id=topology_class2id[topology], wait=30,
+        execute(kill_exp, topology_id=topology_id, wait=30,
                 configuration=configuration)
         execute(limit_cpu, hosts=host_list(configuration))
 
@@ -660,7 +665,8 @@ def batch_run():
         ['fetcher=image'],
         #['fps=25', 'fps=29', 'fps=30', 'fps=40', 'fps=50', 'fps=65', 'fps=80', 'fps=100'],
         #['fps=100', 'fps=100', 'fps=100', 'fps=100', 'fps=100'],
-        ['fps=60', 'fps=100', 'fps=110'],
+        #['fps=60', 'fps=100', 'fps=110'],
+        ['fps=60'],
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',

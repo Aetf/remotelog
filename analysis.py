@@ -378,11 +378,25 @@ def collect_log(log_dir=None):
         cpus[machine] = load_cpu(cpu_log)
 
     logs = correct_log_type(logs)
-    tidy_logs, corrected_counter = zip(*[tidy_frame_logs(per_frame, debug=global_debug)
-                                         for per_frame in group_by_frame(logs)])
-    print('Auto fixed cross stage timming issues for {} log entries'
-          .format(sum(corrected_counter)), file=sys.stderr)
-    return list(tidy_logs), cpus, logs
+    streams_log = group_by(logs, 'id')
+
+    streams = {}
+    lagecy_tidy_logs = None
+    counter = 0
+    for per_stream in streams_log:
+        tidy_logs, corrected_counter = zip(*[tidy_frame_logs(per_frame, debug=global_debug)
+                                             for per_frame in group_by_frame(per_stream)])
+        tidy_logs = list(tidy_logs)
+        tidy_logs.sort(key=lambda per_frame_logs: per_frame_logs[0]['seq'])
+        if lagecy_tidy_logs is None:
+            lagecy_tidy_logs = tidy_logs
+        stream_id = tidy_logs[0][0]['id']
+        streams[stream_id] = tidy_logs
+        counter += sum(corrected_counter)
+
+    print('Auto fixed cross stage timming issues for {} log entries'.format(counter),
+          file=sys.stderr)
+    return streams, cpus, logs
 
 
 def extract_frames(tidy_logs):
@@ -580,8 +594,8 @@ def show_log(logs, seq):
     single = [log for log in logs if log['seq'] == seq]
     single = sorted(single, key=frame_key_getter('stamp'))
     for item in single:
-        print('Machine: {:9} Seq: {:<5}\t{:<8} {:^12}: {}\tSize: {}'
-              .format(item['machine'], item['seq'], item['evt'], item['stage'],
+        print('Stream: {} Machine: {:9} Seq: {:<5}\t{:<8} {:^20}: {}\tSize: {}'
+              .format(item['id'], item['machine'], item['seq'], item['evt'], item['stage'],
                       item['stamp'], item['size']))
 
 
@@ -818,25 +832,25 @@ def run(log_dir=None):
     #                  r' (?P<evt>\w+) (?P<stage>\w+):' +
     #                  r' (?P<stamp>\d+)' +
     #                  r'( \(latency (?P<latency>\d+)\))?$')
-    tidy_logs, cpus, raw_logs = collect_log(log_dir)
-    tidy_logs.sort(key=lambda per_frame_logs: per_frame_logs[0]['seq'])
-
-    frames = extract_frames(tidy_logs)
-
-    clean_frames = sanity_filter(frames)
-
-    compute_latency(clean_frames)
-
-    latency_check(clean_frames)
-
-    distributions = compute_stage_dist(tidy_logs)
-
+    streams, cpus, raw_logs = collect_log(log_dir)
+    
     mpl.rcParams['figure.dpi'] = 193
     mpl.rcParams['axes.formatter.useoffset'] = False
     sns.plt.ion()
     sns.set_style('whitegrid')
 
-    return tidy_logs, frames, clean_frames, distributions, cpus, raw_logs
+    return streams, cpus, raw_logs
+
+def post_process(streams, stream_id):
+    """Post process log for a stream"""
+    tidy_logs = streams[stream_id]
+
+    frames = extract_frames(tidy_logs)
+    clean_frames = sanity_filter(frames)
+    compute_latency(clean_frames)
+    latency_check(clean_frames)
+    distributions = compute_stage_dist(tidy_logs)
+    return tidy_logs, frames, clean_frames, distributions
 
 class exp_res(object):
     """An object holds all parsed logs for one experiment"""
@@ -856,8 +870,22 @@ class exp_res(object):
         self._load_params(os.path.join(log_dir, 'params.txt'))
 
         self._ensure_stage_info()
-        (self.tidy_logs, self.frames, self.clean_frames,
-         self.distributions, self.cpus, self.raw_logs) = run(log_dir)
+
+        lagecy_stream_id = None
+        self.streams = {}
+        streams_logs, self.cpus, self.raw_logs = run(log_dir)
+        for stream_id, per_stream_tidy_log in streams_logs.items():
+            if lagecy_stream_id is None:
+                lagecy_stream_id = stream_id
+            (tidy_logs, frames, clean_frames,
+             distributions) = post_process(streams_logs, stream_id)
+            self.streams[stream_id] = {
+                'tidy_logs': tidy_logs,
+                'frames': frames,
+                'clean_frames': clean_frames,
+                'distributions': distributions
+            }
+        self.select_stream(lagecy_stream_id)
 
         # node count
         nodes = set()
@@ -900,6 +928,11 @@ class exp_res(object):
 
     def _load_params(self, params_path):
         """Load parameters"""
+        key_translate = {
+            'cpu-per-node': 'cpu_per_node',
+            'topo': 'topology_class',
+            'topo-id': 'topo_id'
+        }
         self.params = {}
         with open(params_path) as f:
             lines = [(line[:-1] if line.endswith('\n') else line) for line in f.readlines()]
@@ -908,8 +941,12 @@ class exp_res(object):
                     key, value = line[2:].split('=')
                     self.params[key] = value
                 elif '=' in line:
-                    self.params['cpu_per_node'] = line.split('=')[1]
+                    k, v = line.split('=')
+                    if k in key_translate:
+                        k = key_translate[k]
+                    self.params[k] = v
                 else:
+                    # legacy
                     self.params['topology_class'] = line
         if 'topology_class' not in self.params:
             print('ERROR: topology_class not found!!!')
@@ -957,6 +994,13 @@ class exp_res(object):
         selected = [frame for frame in ff
                     if frame['seq'] in seq]
         return selected, seq
+
+    def select_stream(self, stream_id):
+        """Select current stream"""
+        self.tidy_logs = self.streams[stream_id]['tidy_logs']
+        self.frames = self.streams[stream_id]['frames']
+        self.clean_frames = self.streams[stream_id]['clean_frames']
+        self.distributions = self.streams[stream_id]['distributions']
 
     def show_log(self, seq=None):
         """Print raw log entries"""
