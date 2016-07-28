@@ -101,11 +101,11 @@ accounting_py = '/home/peifeng/work/accounting.py'
 # path to input files on remote server
 input_image = [
     '/home/peifeng/work/data/frame.320x240.jpg',
-    '/home/peifeng/work/data/frame.1080x1920.png',
+    #'/home/peifeng/work/data/frame.1080x1920.png',
 ]
 input_video = [
     '/home/peifeng/work/data/Vid_A_ball.avi',
-    '/home/peifeng/work/data/Vid_I_person_crossing.avi',
+    #'/home/peifeng/work/data/Vid_I_person_crossing.avi',
 ]
 
 # runtime path for zookeeper
@@ -665,8 +665,8 @@ def batch_run():
         ['fetcher=image'],
         #['fps=25', 'fps=29', 'fps=30', 'fps=40', 'fps=50', 'fps=65', 'fps=80', 'fps=100'],
         #['fps=100', 'fps=100', 'fps=100', 'fps=100', 'fps=100'],
-        #['fps=60', 'fps=100', 'fps=110'],
-        ['fps=60'],
+        ['fps=60', 'fps=63', 'fps=65'],
+        #['fps=60'],
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
@@ -698,25 +698,23 @@ def batch_run():
 @task
 def batch_run_gpu():
     """Batch run"""
-    configuration = 'clarity26'
+    configuration = 'clarity24'
     topology = ['BatchDNNTopology']
     cores = [24]
     args = [
         'num-workers=1',
         'fetcher=image',
         'use-caffe=1',
-        ['use-gpu=0'],
+        ['use-gpu=2'],
         #['batch-size=1', 'batch-size=2', 'batch-size=3', 'batch-size=4', 'batch-size=5'],
-        ['batch-size=3'],
+        ['batch-size=1', 'batch-size=2' ],
+        #['batch-size=1'],
         #['fps=15', 'fps=20', 'fps=25', 'fps=30', 'fps=45'],
         #['fps=3', 'fps=4',],
-        ['fps=15'],
+        ['fps=50', 'fps=60', 'fps=70'],
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
-        'sliding-win=100',
-        'sliding-wait=10',
-        'force-single-frame=0',
         ['scale=3'],
         #['scale=1'],
         #['fat=27', 'fat=28', 'fat=29', 'fat=30', 'fat=31', 'fat=32'],
@@ -724,7 +722,7 @@ def batch_run_gpu():
         #['fat=14', 'fat=16', 'fat=18', 'fat=20'],
         #['fat=80', 'fat=58', 'fat=68'],
         #['fat=80', 'fat=1005],
-        ['fat=50',],
+        ['fat=2',],
         'drawer=3'
         #'drawer=1'
     ]
