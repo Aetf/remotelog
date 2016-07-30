@@ -663,9 +663,10 @@ def batch_run():
     args = [
         'num-workers=1',
         ['fetcher=image'],
+        ['fps=60', 'fps=60', 'fps=60', 'fps=60', 'fps=60', 'fps=60', 'fps=60', 'fps=60', 'fps=60', 'fps=60'],
         #['fps=25', 'fps=29', 'fps=30', 'fps=40', 'fps=50', 'fps=65', 'fps=80', 'fps=100'],
         #['fps=100', 'fps=100', 'fps=100', 'fps=100', 'fps=100'],
-        ['fps=60', 'fps=63', 'fps=65'],
+        #['fps=60', 'fps=63', 'fps=65'],
         #['fps=60'],
         'auto-sleep=0',
         'msg-timeout=1000000',
@@ -745,16 +746,19 @@ def batch_run_cap():
     args = [
         'num-workers=1',
         'fetcher=image',
-        ['use-gpu=2'],
-        ['cap-use-gpu=2'],
+        ['use-gpu=1'],
+        ['cap-use-gpu=1'],
 
-        ['group-size=10', 'group-size=50', 'group-size=100'],
+        [
+         'group-size=15', 'group-size=15', 'group-size=15',
+         'group-size=15', 'group-size=15', 'group-size=15',
+         ],
         #'min-group-size=10',
         #'max-group-size=200',
 
         #['fps=15', 'fps=20', 'fps=25'],
         #['fps=3', 'fps=4',],
-        ['fps=15'],
+        ['fps=20'],
 
         'auto-sleep=0',
         'msg-timeout=1000000',
