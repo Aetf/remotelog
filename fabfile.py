@@ -85,27 +85,27 @@ env.use_ssh_config = True
 # ====================================================================
 
 # path to VideoDB project on local machine
-local_project = '/home/aetf/develop/vcs/VideoDB'
+local_project = '/home/lvnguyen/VideoDB'
 # path to VideoDB project on remote server
-project_dir = '/home/peifeng/VideoDB'
+project_dir = '/home/lvnguyen/VideoDB'
 # path to a work directory on remote server
-work_dir = '/home/peifeng/work'
+work_dir = '/home/lvnguyen/work'
 
 # path to storm installation on remote server
-storm_path = '/home/peifeng/tools/storm'
+storm_path = '/home/lvnguyen/apache-storm-0.10.1'
 # path to zookeeper installation on remote server
-zookeeper_path = '/home/peifeng/tools/zookeeper'
+zookeeper_path = '/home/lvnguyen/zookeeper-3.4.8'
 # path to cpu accounting script on remote server
-accounting_py = '/home/peifeng/work/accounting.py'
+accounting_py = '/home/lvnguyen/remotelog/accounting.py'
 
 # path to input files on remote server
 input_image = [
-    '/home/peifeng/work/data/frame.320x240.jpg',
-    #'/home/peifeng/work/data/frame.1080x1920.png',
+#    '/home/lvnguyen/work/data/frame.320x240.jpg',
+    '/home/lvnguyen/work/data/frame.1080x1920.png',
 ]
 input_video = [
-    '/home/peifeng/work/data/Vid_A_ball.avi',
-    #'/home/peifeng/work/data/Vid_I_person_crossing.avi',
+    '/home/lvnguyen/work/data/Vid_A_ball.avi',
+    #'/home/lvnguyen/work/data/Vid_I_person_crossing.avi',
 ]
 
 # runtime path for zookeeper
@@ -151,18 +151,18 @@ def wait_with_progress(max_sec, msg=None, resolution=1):
 
 def main_host(configuration):
     """Get main host from configuration"""
-    username = 'peifeng'
+    username = 'lvnguyen'
     if configuration is None:
         configuration = 'all'
     if configuration == 'all':
-        return '{}@clarity26'.format(username)
+        return '{}@localhost'.format(username)
     else:
         return '{}@{}'.format(username, configuration)
 
 def host_list(configuration):
     """Get host list from configuration"""
-    username = 'peifeng'
-    l = ['{}@clarity25', '{}@clarity26']
+    username = 'lvnguyen'
+    l = ['{}@clarity24']
     if configuration is None:
         configuration = 'all'
     if configuration == 'all':
