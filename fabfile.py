@@ -3,7 +3,7 @@
 
 DEPENDENCIES:
 This script uses python package Fabric3, progressbar, which can be installed with command:
-    pip install --user Fabric3 progressbar
+    pip install --user Fabric3 progress
 It also requires tmux installed on remote server.
 
 NOTE: adjust the configuration section and main_host/host_list below to suit your needs before
@@ -752,6 +752,7 @@ def batch_run_cap():
         [
          'group-size=15', 'group-size=15', 'group-size=15',
          'group-size=15', 'group-size=15', 'group-size=15',
+         'group-size=15',
          ],
         #'min-group-size=10',
         #'max-group-size=200',
