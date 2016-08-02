@@ -10,6 +10,7 @@ from collections import defaultdict
 from itertools import groupby
 from statistics import mean
 
+import numpy as np
 import matplotlib as mpl
 import pandas as pd
 import seaborn as sns
@@ -714,15 +715,26 @@ def cpu_plot(cpu, which=None):
         thePlot.figure.tight_layout()
     return fig
 
+def cdf_plot(clean_frames, stage=None, **kwargs):
+    """Plot CDF,
+    from http://stackoverflow.com/questions/25577352/plotting-cdf-of-a-pandas-series-in-python
+    """
+    if stage is None:
+        stage = 'total'
+    if not isinstance(stage, list):
+        stage = [stage]
 
-def cdf_plot(clean_frames, **kwargs):
-    """Plot!"""
-    ser = pd.Series([frame['latencies']['total'] for frame in clean_frames])
-    thePlot = ser.hist(cumulative=True, histtype='step', bins=2000, **kwargs)
-    thePlot.set_xlabel('Latency (ms)')
-    thePlot.set_ylabel('Frame count')
-    thePlot.figure.tight_layout()
-    return thePlot
+    p = None
+    for st in stage:
+        ser = pd.Series([frame['latencies'][st] for frame in clean_frames])
+        ser = ser.sort_values()
+        ser[len(ser)] = ser.iloc[-1]
+        cum_dist = np.linspace(0.,1.,len(ser))
+        ser_cdf = pd.Series(cum_dist, index=ser)
+        p = ser_cdf.plot(drawstyle='steps', ax=p, label=st, legend=True, **kwargs)
+    p.set_xlabel('Latency (ms)')
+    p.figure.tight_layout()
+    return p
 
 
 def seq_any_plot(clean_frames, getter, should_include, **kwargs):
@@ -1042,6 +1054,15 @@ class exp_res(object):
         p.figure.tight_layout()
         return p
 
+    def cdf(self, seq=None, stage=None, **kwargs):
+        """Plot CDF"""
+        self._ensure_stage_info()
+        frames, frame_seqs = self._select(seq)
+        p = cdf_plot(frames, stage, **kwargs)
+        p.figure.canvas.set_window_title('Exp: {}'.format(self.exp_name))
+        p.figure.tight_layout()
+        return p
+
     def seq_plot(self, getter, should_include=None, seq=None, **kwargs):
         """Plot against seq"""
         self._ensure_stage_info()
@@ -1191,6 +1212,14 @@ class cross_res(object):
         df.loc[:, x_name] = [x_data(exp) for exp in self.exps]
         df = df.sort_values(x_name)
         p = df.plot(x=x_name, marker='o', **kwargs)
+        return p
+
+    def latency_cdf(self, stage=None, **kwargs):
+        """Latency CDF cross all exps. You should make sure this makes sence"""
+        all_frames = []
+        for exp in self.exps:
+            all_frames += exp.clean_frames
+        p = cdf_plot(all_frames, stage, **kwargs)
         return p
 
     def plot_all(self):
