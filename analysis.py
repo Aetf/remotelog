@@ -19,6 +19,7 @@ from scipy.stats import f_oneway, linregress
 global_debug = False
 global_skipOp = True
 global_skipAutoFix = False
+global_perBatch = False
 
 topology_stage_map = {
     'nl.tno.stormcv.deploy.DNNTopology':
@@ -72,6 +73,16 @@ def next_stage(stage):
     return stages[stages2idx[stage] + 1]
 
 
+def is_after(stageA, stageB):
+    """If stageA comes after stageB"""
+    return stages2idx[stageA] > stages2idx[stageB]
+
+
+def is_before(stageA, stageB):
+    """If stageA comes before stageB"""
+    return stages2idx[stageA] < stages2idx[stageB]
+
+
 def frame_time_for(frame, evt, stage, trial=0):
     """Return time for evt, stage"""
     trials = frame['retries']
@@ -84,7 +95,7 @@ def frame_time_for(frame, evt, stage, trial=0):
 
 def update_stage_info(topology_class, log_version=1):
     """Recompute stage info"""
-    global stages, stages2idx, full_stages, categories, cat2idx, global_skipOp
+    global stages, stages2idx, full_stages, categories, cat2idx, global_skipOp, global_perBatch
     new_stages = topology_stage_map[topology_class]
     stages = copy(new_stages)
 
@@ -115,6 +126,11 @@ def update_stage_info(topology_class, log_version=1):
         global_skipOp = True
     else:
         global_skipOp = True
+
+    if topology_class == 'nl.tno.stormcv.deploy.CaptionerTopology':
+        global_perBatch = True
+    else:
+        global_perBatch = False
 
 update_stage_info('nl.tno.stormcv.deploy.DNNTopology', 2)
 
@@ -152,10 +168,14 @@ def correct_log_type(logs):
         elif log['evt'] == 'OpEnd':
             log['stage'] = log['stage'][log['stage'].rfind('.')+1:]
         log['stamp'] = int(log['stamp'])
-        if not log['size'] is None:
+        if log['size'] is not None:
             log['size'] = int(log['size'])
         else:
             log['size'] = 0
+        if log['batch'] is not None:
+            log['batch'] = int(log['batch'])
+        else:
+            log['batch'] = -1
     # Normalize time stamp
     start_time = min([l['stamp'] for l in logs])
     for l in logs:
@@ -357,6 +377,7 @@ def collect_log(log_dir=None):
     """Collect log from files"""
     pttn = re.compile(r'^.+RequestID: (?P<req>[0-9-]+) StreamID: (?P<id>[^ ]+)'
                       r' SequenceNr: (?P<seq>\d+)'
+                      r'( BatchId: (?P<batch>[0-9-]+))?'
                       r' (?P<evt>\w+) (?P<stage>[\w.]+):'
                       r' (?P<stamp>\d+)'
                       r'( Size: (?P<size>\d+))?$')
@@ -421,9 +442,22 @@ def extract_frames(tidy_logs):
                 if evt == 'Retry':
                     evt = 'Leaving'
                     head.append(retries[0][0])
+                if evt == 'Entering' and trial[idx]['stage'].endswith('batcher'):
+                    frame['enter-batch-stamp'] = trial[idx]['stamp']
+                if trial[idx]['batch'] != -1:
+                    if 'batch' in frame and frame['batch'] != trial[idx]['batch']:
+                        print('WARNING: Frame {} has multiple batchId.'.format(frame['seq']),
+                              file=sys.stderr)
+                    if evt == 'Leaving' and trial[idx]['stage'].endswith('batcher'):
+                        frame['batch'] = trial[idx]['batch']
                 trial[idx] = (evt, trial[idx]['stage'], trial[idx]['stamp'])
             trial[:0] = head
         frame['retries'] = [item for item in retries if isinstance(item[0], tuple)]
+        if 'batch' not in frame:
+            frame['batch'] = -1
+        if 'enter-batch-stamp' not in frame:
+            frame['enter-batch-stamp'] = 0
+            frame['batch'] = -1
         return frame
 
     frames = [extract_frame(frame_entries) for frame_entries in tidy_logs]
@@ -538,11 +572,15 @@ def compute_latency(frames):
         for k in latencies.keys():
             avg_latency[k] = avg_latency[k] + latencies[k]
             latencies[k] = sum(latencies[k])/len(latencies[k])
-        latencies = defaultdict(int, latencies)
+        latencies = dict(latencies)
         latencies['service'] = 0
-        for st in stages:
-            if st != 'spout' and st != 'ack' and not st.endswith('batcher'):
-                latencies['service'] += latencies[st]
+        try:
+            for st in stages:
+                if st != 'spout' and st != 'ack' and not st.endswith('batcher'):
+                    latencies['service'] += latencies[st]
+        except KeyError as e:
+            # The frame doesn't go through all stages
+            del latencies['service']
         frame['latencies'] = latencies
 
     if anomaly_cnt > 0:
@@ -682,6 +720,64 @@ def compute_stage_dist(tidy_logs, normalize=True, step=1000, excludeCat=None):
     return distributions
 
 
+def convert_to_batch(frames):
+    """Convert a list of frames to a list of batches"""
+    batches = []
+    for framesInABatch in group_by(frames, 'batch'):
+        framesInABatch.sort(key=frame_key_getter('enter-batch-stamp'))
+        lastFrame = framesInABatch[-1]
+        batch = copy(lastFrame)
+        batch['seq'] = batch['batch']
+        batches.append(batch)
+
+    def update_batch(batchId, d):
+        """Update a given batch"""
+        for b in batches:
+            if b['batch'] == batchId:
+                b.update(d)
+
+    def find_batch(batchId):
+        """Update a given batch"""
+        for idx in range(0, len(batches)):
+            if batches[idx]['batch'] == batchId:
+                return idx
+        return -1
+
+
+    # Complete captioner and streamer latency for batches
+    for frame in frames:
+        done = False
+        for trial in frame['retries']:
+            for evt, st, stamp in trial:
+                if is_after(st, 'frame_grouper'):
+                    # This frame is actually a GroupOfFrame object in java
+                    idx = find_batch(frame['batch'])
+                    # add extra latency values
+                    for k, v in frame['latencies'].items():
+                        if k not in batches[idx]['latencies']:
+                            batches[idx]['latencies'][k] = v
+                    # re-calc service and total latency
+                    latencies = batches[idx]['latencies']
+                    latencies['service'] = 0
+                    try:
+                        for st in stages:
+                            if st != 'spout' and st != 'ack' and not st.endswith('batcher'):
+                                latencies['service'] += latencies[st]
+                    except KeyError as e:
+                        # The frame doesn't go through all stages
+                        latencies['service'] = -1
+                    latencies['total'] = 0
+                    for k, v in latencies.items():
+                        if k != 'service' and k != 'total':
+                            latencies['total'] += v
+
+                    done = True
+                    break;
+            if done:
+                break
+    return batches
+
+
 def fps_plot(tidy_logs, point=('Entering', 'spout'), step=1000, **kwargs):
     """Plot!"""
     if not isinstance(point, list):
@@ -714,6 +810,7 @@ def cpu_plot(cpu, which=None):
         thePlot.set_ylabel('CPU utilization (%)')
         thePlot.figure.tight_layout()
     return fig
+
 
 def cdf_plot(clean_frames, stage=None, **kwargs):
     """Plot CDF,
@@ -862,6 +959,9 @@ def post_process(streams, stream_id):
     compute_latency(clean_frames)
     latency_check(clean_frames)
     distributions = compute_stage_dist(tidy_logs)
+    if global_perBatch:
+        # actually here the new clean_frames list represents a list of batches
+        clean_frames = convert_to_batch(clean_frames)
     return tidy_logs, frames, clean_frames, distributions
 
 class exp_res(object):
