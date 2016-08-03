@@ -822,6 +822,9 @@ def cdf_plot(clean_frames, stage=None, **kwargs):
         stage = [stage]
 
     p = None
+    if 'ax' in kwargs:
+        p = kwargs['ax']
+        del kwargs['ax']
     for st in stage:
         ser = pd.Series([frame['latencies'][st] for frame in clean_frames if st in frame['latencies']])
         ser = ser.sort_values()
