@@ -823,7 +823,7 @@ def cdf_plot(clean_frames, stage=None, **kwargs):
 
     p = None
     for st in stage:
-        ser = pd.Series([frame['latencies'][st] for frame in clean_frames])
+        ser = pd.Series([frame['latencies'][st] for frame in clean_frames if st in frame['latencies']])
         ser = ser.sort_values()
         ser[len(ser)] = ser.iloc[-1]
         cum_dist = np.linspace(0.,1.,len(ser))
