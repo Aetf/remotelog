@@ -750,8 +750,8 @@ def batch_run_cap():
         ['cap-use-gpu=1'],
 
         [
-         'group-size=15', 'group-size=15', 'group-size=15',
-         'group-size=15', 'group-size=15', 'group-size=15',
+         #'group-size=15', 'group-size=15', 'group-size=15',
+         #'group-size=15', 'group-size=15', 'group-size=15',
          'group-size=15',
          ],
         #'min-group-size=10',
@@ -764,6 +764,7 @@ def batch_run_cap():
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
+        'timer=nano',
 
         ['scale=3'],
         'vgg=10',
