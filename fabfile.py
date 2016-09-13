@@ -92,7 +92,7 @@ project_dir = '/home/peifeng/VideoDB'
 work_dir = '/home/peifeng/work'
 
 # path to storm installation on remote server
-storm_path = '/home/peifeng/tools/storm'
+storm_path = '/home/peifeng/tools/storm102'
 # path to zookeeper installation on remote server
 zookeeper_path = '/home/peifeng/tools/zookeeper'
 # path to cpu accounting script on remote server
@@ -100,12 +100,13 @@ accounting_py = '/home/peifeng/work/accounting.py'
 
 # path to input files on remote server
 input_image = [
-    '/home/peifeng/work/data/frame.320x240.jpg',
-    #'/home/peifeng/work/data/frame.1080x1920.png',
+    #'/home/peifeng/work/data/frame.320x240.jpg',
+    '/home/peifeng/work/data/frame.1080x1920.png',
 ]
 input_video = [
-    '/home/peifeng/work/data/Vid_A_ball.avi',
+    #'/home/peifeng/work/data/Vid_A_ball.avi',
     #'/home/peifeng/work/data/Vid_I_person_crossing.avi',
+    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4',
 ]
 
 # runtime path for zookeeper
@@ -498,7 +499,7 @@ def pull_log_per_node(log_dir):
     shorthost = env.host.replace('.eecs.umich.edu', '')
     per_machine_dir = os.path.join(log_dir, shorthost)
 
-    rsync_project(remote_dir=storm_path + '/logs/*worker*.log*',
+    rsync_project(remote_dir=storm_path + '/logs/workers-artifacts/*/',
                   local_dir=per_machine_dir, upload=False)
     rsync_project(remote_dir=storm_path + '/logs/log.cpu',
                   local_dir=per_machine_dir, upload=False)
@@ -509,8 +510,8 @@ def clean_log():
     """Clean logs from server"""
     cmd = [
         'rm',
-        '-f',
-        storm_path + '/logs/*worker*.log*',
+        '-rf',
+        storm_path + '/logs/workers-artifacts',
         storm_path + '/logs/log.cpu'
     ]
     run(' '.join(cmd))
@@ -657,17 +658,17 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
 @task
 def batch_run():
     """Batch run"""
-    configuration = 'clarity26'
+    configuration = 'clarity24'
     topology = ['ObjTrackingTopology']
     cores = [32]
     args = [
         'num-workers=1',
         ['fetcher=image'],
-        ['fps=60', 'fps=60', 'fps=60', 'fps=60', 'fps=60', 'fps=60', 'fps=60', 'fps=60', 'fps=60', 'fps=60'],
+        #['fps=60', 'fps=60', 'fps=60', 'fps=60', 'fps=60', 'fps=60', 'fps=60', 'fps=60', 'fps=60', 'fps=60'],
         #['fps=25', 'fps=29', 'fps=30', 'fps=40', 'fps=50', 'fps=65', 'fps=80', 'fps=100'],
         #['fps=100', 'fps=100', 'fps=100', 'fps=100', 'fps=100'],
         #['fps=60', 'fps=63', 'fps=65'],
-        #['fps=60'],
+        ['fps=60'],
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
@@ -704,15 +705,16 @@ def batch_run_gpu():
     cores = [24]
     args = [
         'num-workers=1',
-        'fetcher=image',
+        'fetcher=video',
         'use-caffe=1',
         ['use-gpu=2'],
         #['batch-size=1', 'batch-size=2', 'batch-size=3', 'batch-size=4', 'batch-size=5'],
-        ['batch-size=1', 'batch-size=2' ],
-        #['batch-size=1'],
+        #['batch-size=1', 'batch-size=2' ],
+        ['batch-size=1'],
         #['fps=15', 'fps=20', 'fps=25', 'fps=30', 'fps=45'],
         #['fps=3', 'fps=4',],
-        ['fps=50', 'fps=60', 'fps=70'],
+        #['fps=50', 'fps=60', 'fps=70'],
+        ['fps=30'],
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
@@ -792,7 +794,7 @@ def batch_run_cap():
 @task
 def batch_run_spoutonly():
     """Batch run"""
-    configuration = 'clarity26'
+    configuration = 'clarity24'
     topology = ['SpoutOnly']
     cores = [24]
     args = [
