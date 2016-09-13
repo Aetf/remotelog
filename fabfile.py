@@ -85,7 +85,7 @@ env.use_ssh_config = True
 # ====================================================================
 
 # path to VideoDB project on local machine
-local_project = '/home/aetf/develop/vcs/VideoDB'
+local_project = '/home/peifeng/VideoDB'
 # path to VideoDB project on remote server
 project_dir = '/home/peifeng/VideoDB'
 # path to a work directory on remote server
@@ -673,7 +673,7 @@ def batch_run():
         'max-spout-pending=10000',
         'sliding-win=100',
         'sliding-wait=10',
-        'force-single-frame=0',
+        'force-single-frame=1',
         'roi=209,117,36,43',
         ['scale=4'],
         #['scale=1'],
@@ -750,8 +750,17 @@ def batch_run_cap():
         ['cap-use-gpu=1'],
 
         [
-         #'group-size=15', 'group-size=15', 'group-size=15',
-         #'group-size=15', 'group-size=15', 'group-size=15',
+         'group-size=5', 'group-size=5', 'group-size=5',
+         'group-size=5', 'group-size=5', 'group-size=5',
+         'group-size=5', 'group-size=5', 'group-size=5',
+         'group-size=5',
+         'group-size=10', 'group-size=10', 'group-size=10',
+         'group-size=10', 'group-size=10', 'group-size=10',
+         'group-size=10', 'group-size=10', 'group-size=10',
+         'group-size=10',
+         'group-size=15', 'group-size=15', 'group-size=15',
+         'group-size=15', 'group-size=15', 'group-size=15',
+         'group-size=15', 'group-size=15', 'group-size=15',
          'group-size=15',
          ],
         #'min-group-size=10',
