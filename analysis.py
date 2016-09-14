@@ -20,6 +20,7 @@ global_debug = False
 global_skipOp = True
 global_skipAutoFix = False
 global_perBatch = False
+global_storm102 = True
 
 topology_stage_map = {
     'nl.tno.stormcv.deploy.DNNTopology':
@@ -95,15 +96,20 @@ def frame_time_for(frame, evt, stage, trial=0):
 
 def update_stage_info(topology_class, log_version=1):
     """Recompute stage info"""
-    global stages, stages2idx, full_stages, categories, cat2idx, global_skipOp, global_perBatch
+    global stages, stages2idx, full_stages, categories, cat2idx, global_skipOp, global_perBatch, global_storm102
     new_stages = topology_stage_map[topology_class]
     stages = copy(new_stages)
 
     if log_version < 2:
-        print('WARNING: reading log version 1 (before 2016-7-18)', file=sys.stderr)
+        print('WARNING: reading log version 1 (before 2016-7-18), remove batcher stage',
+              file=sys.stderr)
         for s in new_stages:
             if s.endswith('batcher'):
                 stages.remove(s)
+    elif log_version < 3:
+        print('WARNING: reading log version 2 (before 2016-9-1), use storm102 log structure',
+              file=sys.stderr)
+        global_storm102 = False
 
     stages2idx = {stages[idx]: idx for idx in range(0, len(stages))}
 
@@ -132,7 +138,7 @@ def update_stage_info(topology_class, log_version=1):
     else:
         global_perBatch = False
 
-update_stage_info('nl.tno.stormcv.deploy.DNNTopology', 2)
+update_stage_info('nl.tno.stormcv.deploy.DNNTopology', 3)
 
 
 globpattern = None
@@ -386,7 +392,11 @@ def collect_log(log_dir=None):
     if log_dir is None:
         log_dir = _globpattern()
     for machine in next(os.walk(log_dir))[1]:
-        files = glob.glob(os.path.join(log_dir, machine, '*.log'))
+        if global_storm102:
+            print('the glob pattern is', os.path.join(log_dir, machine, '*', 'worker.log'))
+            files = glob.glob(os.path.join(log_dir, machine, '*', 'worker.log'))
+        else:
+            files = glob.glob(os.path.join(log_dir, machine, '*.log'))
         print('Collect log from', files, file=sys.stderr)
         tmp = []
         for file in files:
@@ -812,7 +822,7 @@ def cpu_plot(cpu, which=None):
     return fig
 
 
-def cdf_plot(clean_frames, stage=None, **kwargs):
+def cdf_plot(clean_frames, stage=None, label_format=None, **kwargs):
     """Plot CDF,
     from http://stackoverflow.com/questions/25577352/plotting-cdf-of-a-pandas-series-in-python
     """
@@ -820,6 +830,8 @@ def cdf_plot(clean_frames, stage=None, **kwargs):
         stage = 'total'
     if not isinstance(stage, list):
         stage = [stage]
+    if label_format is None:
+        label_format = '{stage}'
 
     p = None
     if 'ax' in kwargs:
@@ -831,7 +843,8 @@ def cdf_plot(clean_frames, stage=None, **kwargs):
         ser[len(ser)] = ser.iloc[-1]
         cum_dist = np.linspace(0.,1.,len(ser))
         ser_cdf = pd.Series(cum_dist, index=ser)
-        p = ser_cdf.plot(drawstyle='steps', ax=p, label=st, legend=True, **kwargs)
+        p = ser_cdf.plot(drawstyle='steps', ax=p, label=label_format.format(stage=st),
+                         legend=True, **kwargs)
     p.set_xlabel('Latency (ms)')
     p.figure.tight_layout()
     return p
@@ -973,16 +986,20 @@ class exp_res(object):
         self.exp_name = exp_name
         if exp_name.find('/') != -1:
             cut = dt(2016, 7, 18)
+            cut2 = dt(2016,9,1)
             self.exp_date = dt.strptime(exp_name[:exp_name.find('/')], "%Y-%m-%d")
             if self.exp_date < cut:
                 self.log_version = 1
-            else:
+            elif self.exp_date < cut2:
                 self.log_version = 2
+            else:
+                self.log_version = 3
         else:
-            self.log_version = 2
+            self.log_version = 3
 
         log_dir = 'archive/{}'.format(exp_name)
         self._load_params(os.path.join(log_dir, 'params.txt'))
+        self.params['exp_name'] = self.exp_name
 
         self._ensure_stage_info()
 
@@ -1161,6 +1178,8 @@ class exp_res(object):
         """Plot CDF"""
         self._ensure_stage_info()
         frames, frame_seqs = self._select(seq)
+        if 'label_format' in kwargs:
+            kwargs['label_format'] = kwargs['label_format'].format(**self.params)
         p = cdf_plot(frames, stage, **kwargs)
         p.figure.canvas.set_window_title('Exp: {}'.format(self.exp_name))
         p.figure.tight_layout()
@@ -1317,12 +1336,19 @@ class cross_res(object):
         p = df.plot(x=x_name, marker='o', **kwargs)
         return p
 
-    def latency_cdf(self, stage=None, **kwargs):
+    def latency_cdf(self, stage=None, merge=True, **kwargs):
         """Latency CDF cross all exps. You should make sure this makes sence"""
-        all_frames = []
-        for exp in self.exps:
-            all_frames += exp.clean_frames
-        p = cdf_plot(all_frames, stage, **kwargs)
+        if merge:
+            all_frames = []
+            for exp in self.exps:
+                all_frames += exp.clean_frames
+            p = cdf_plot(all_frames, stage, **kwargs)
+        else:
+            p = None
+            for exp in self.exps:
+                p = exp.cdf(stage, ax=p, **kwargs)
+            p.figure.canvas.set_window_title('CDF')
+            p.figure.tight_layout()
         return p
 
     def plot_all(self):
