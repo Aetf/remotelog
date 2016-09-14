@@ -101,15 +101,26 @@ def update_stage_info(topology_class, log_version=1):
     stages = copy(new_stages)
 
     if log_version < 2:
-        print('WARNING: reading log version 1 (before 2016-7-18), remove batcher stage',
+        print('WARNING: log version < 2 (before 2016-7-18), remove batcher stage',
               file=sys.stderr)
         for s in new_stages:
             if s.endswith('batcher'):
                 stages.remove(s)
-    elif log_version < 3:
-        print('WARNING: reading log version 2 (before 2016-9-1), use storm102 log structure',
+    if log_version < 3:
+        print('WARNING: log version < 3 (before 2016-9-1), use storm102 log structure',
               file=sys.stderr)
         global_storm102 = False
+
+    if log_version >= 4:
+        print('WARNING: log version >= 4 (after 2016-9-14), remove scale stage from topologies',
+              file=sys.stderr)
+        if topology_class in ['nl.tno.stormcv.deploy.DNNTopology',
+                              'nl.tno.stormcv.deploy.BatchDNNTopology',
+                              'nl.tno.stormcv.deploy.SpoutOnly',
+                              'nl.tno.stormcv.deploy.SplitDNNTopology',
+                              'nl.tno.stormcv.deploy.ObjTrackingTopology',
+                              'nl.tno.stormcv.deploy.CaptionerTopology']:
+            stages.remove('scale')
 
     stages2idx = {stages[idx]: idx for idx in range(0, len(stages))}
 
