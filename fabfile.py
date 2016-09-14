@@ -705,16 +705,17 @@ def batch_run_gpu():
     cores = [24]
     args = [
         'num-workers=1',
-        'fetcher=video',
+        'fetcher=image',
         'use-caffe=1',
-        ['use-gpu=2'],
+        ['use-gpu=1'],
         #['batch-size=1', 'batch-size=2', 'batch-size=3', 'batch-size=4', 'batch-size=5'],
         #['batch-size=1', 'batch-size=2' ],
         ['batch-size=1'],
         #['fps=15', 'fps=20', 'fps=25', 'fps=30', 'fps=45'],
+        ['fps=15', 'fps=15', 'fps=15', 'fps=15', 'fps=15'],
         #['fps=3', 'fps=4',],
         #['fps=50', 'fps=60', 'fps=70'],
-        ['fps=30'],
+        #['fps=30'],
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
@@ -725,7 +726,7 @@ def batch_run_gpu():
         #['fat=14', 'fat=16', 'fat=18', 'fat=20'],
         #['fat=80', 'fat=58', 'fat=68'],
         #['fat=80', 'fat=1005],
-        ['fat=2',],
+        ['fat=1',],
         'drawer=3'
         #'drawer=1'
     ]
@@ -736,7 +737,7 @@ def batch_run_gpu():
 
     for combo in itertools.product(topology, cores, *args):
         print('combo: ', combo)
-        execute(run_exp, configuration, least=2, *combo)
+        execute(run_exp, configuration, least=5, *combo)
 
 
 @task
@@ -752,18 +753,10 @@ def batch_run_cap():
         ['cap-use-gpu=1'],
 
         [
-         'group-size=5', 'group-size=5', 'group-size=5',
-         'group-size=5', 'group-size=5', 'group-size=5',
-         'group-size=5', 'group-size=5', 'group-size=5',
-         'group-size=5',
          'group-size=10', 'group-size=10', 'group-size=10',
          'group-size=10', 'group-size=10', 'group-size=10',
          'group-size=10', 'group-size=10', 'group-size=10',
          'group-size=10',
-         'group-size=15', 'group-size=15', 'group-size=15',
-         'group-size=15', 'group-size=15', 'group-size=15',
-         'group-size=15', 'group-size=15', 'group-size=15',
-         'group-size=15',
          ],
         #'min-group-size=10',
         #'max-group-size=200',
