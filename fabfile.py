@@ -361,7 +361,7 @@ def build(force=None):
     with cd(project_dir):
         run('git pull')
         with cd('stormcv'):
-            run('./gradlew install')
+            run('mvn install')
         with cd('stormcv-deploy'):
             run('mvn package')
 
@@ -710,7 +710,7 @@ def batch_run_gpu():
         ['use-gpu=2'],
         #['batch-size=1', 'batch-size=2', 'batch-size=3', 'batch-size=4', 'batch-size=5'],
         #['batch-size=1', 'batch-size=2' ],
-        ['batch-size=1'],
+        ['batch-size=1', 'batch-size=1'],
         #['fps=15', 'fps=20', 'fps=25', 'fps=30', 'fps=45'],
         #['fps=3', 'fps=4',],
         #['fps=50', 'fps=60', 'fps=70'],
@@ -718,7 +718,7 @@ def batch_run_gpu():
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
-        ['scale=3'],
+        #['scale=3'],
         #['scale=1'],
         #['fat=27', 'fat=28', 'fat=29', 'fat=30', 'fat=31', 'fat=32'],
         #['fat=40', 'fat=50', 'fat=60', 'fat=80', 'fat=100'],
