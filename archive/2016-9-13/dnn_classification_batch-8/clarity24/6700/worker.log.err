@@ -1,0 +1,3138 @@
+SLF4J: Class path contains multiple SLF4J bindings.
+SLF4J: Found binding in [jar:file:/home/peifeng/tools/storm102/lib/log4j-slf4j-impl-2.1.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: Found binding in [jar:file:/home/peifeng/work/run/storm102/data/supervisor/stormdist/dnn_classification_batch-1-1473810017/stormjar.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: See http://www.slf4j.org/codes.html#multiple_bindings for an explanation.
+SLF4J: Actual binding is of type [org.apache.logging.slf4j.Log4jLoggerFactory]
+Java HotSpot(TM) 64-Bit Server VM warning: You have loaded library /home/peifeng/work/run/storm102/data/workers/f0dcdc23-6a40-4a9b-83d6-4e05c63f557d/tmp/cvld6786429338636435377/libopencv_java310.xine1.so which might have disabled stack guard. The VM will try to fix the stack guard now.
+It's highly recommended that you fix the library with 'execstack -c <libfile>', or link it with '-z noexecstack'.
+WARNING: Logging before InitGoogleLogging() is written to STDERR
+I0913 19:40:55.566507 26750 net.cpp:49] Initializing net from parameters: 
+name: "GoogleNet"
+state {
+  phase: TEST
+}
+layer {
+  name: "data"
+  type: "Input"
+  top: "data"
+  input_param {
+    shape {
+      dim: 10
+      dim: 3
+      dim: 224
+      dim: 224
+    }
+  }
+}
+layer {
+  name: "conv1/7x7_s2"
+  type: "Convolution"
+  bottom: "data"
+  top: "conv1/7x7_s2"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    pad: 3
+    kernel_size: 7
+    stride: 2
+    weight_filler {
+      type: "xavier"
+      std: 0.1
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "conv1/relu_7x7"
+  type: "ReLU"
+  bottom: "conv1/7x7_s2"
+  top: "conv1/7x7_s2"
+}
+layer {
+  name: "pool1/3x3_s2"
+  type: "Pooling"
+  bottom: "conv1/7x7_s2"
+  top: "pool1/3x3_s2"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 2
+  }
+}
+layer {
+  name: "pool1/norm1"
+  type: "LRN"
+  bottom: "pool1/3x3_s2"
+  top: "pool1/norm1"
+  lrn_param {
+    local_size: 5
+    alpha: 0.0001
+    beta: 0.75
+  }
+}
+layer {
+  name: "conv2/3x3_reduce"
+  type: "Convolution"
+  bottom: "pool1/norm1"
+  top: "conv2/3x3_reduce"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.1
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "conv2/relu_3x3_reduce"
+  type: "ReLU"
+  bottom: "conv2/3x3_reduce"
+  top: "conv2/3x3_reduce"
+}
+layer {
+  name: "conv2/3x3"
+  type: "Convolution"
+  bottom: "conv2/3x3_reduce"
+  top: "conv2/3x3"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 192
+    pad: 1
+    kernel_size: 3
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "conv2/relu_3x3"
+  type: "ReLU"
+  bottom: "conv2/3x3"
+  top: "conv2/3x3"
+}
+layer {
+  name: "conv2/norm2"
+  type: "LRN"
+  bottom: "conv2/3x3"
+  top: "conv2/norm2"
+  lrn_param {
+    local_size: 5
+    alpha: 0.0001
+    beta: 0.75
+  }
+}
+layer {
+  name: "pool2/3x3_s2"
+  type: "Pooling"
+  bottom: "conv2/norm2"
+  top: "pool2/3x3_s2"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 2
+  }
+}
+layer {
+  name: "inception_3a/1x1"
+  type: "Convolution"
+  bottom: "pool2/3x3_s2"
+  top: "inception_3a/1x1"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_3a/relu_1x1"
+  type: "ReLU"
+  bottom: "inception_3a/1x1"
+  top: "inception_3a/1x1"
+}
+layer {
+  name: "inception_3a/3x3_reduce"
+  type: "Convolution"
+  bottom: "pool2/3x3_s2"
+  top: "inception_3a/3x3_reduce"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 96
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.09
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_3a/relu_3x3_reduce"
+  type: "ReLU"
+  bottom: "inception_3a/3x3_reduce"
+  top: "inception_3a/3x3_reduce"
+}
+layer {
+  name: "inception_3a/3x3"
+  type: "Convolution"
+  bottom: "inception_3a/3x3_reduce"
+  top: "inception_3a/3x3"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 128
+    pad: 1
+    kernel_size: 3
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_3a/relu_3x3"
+  type: "ReLU"
+  bottom: "inception_3a/3x3"
+  top: "inception_3a/3x3"
+}
+layer {
+  name: "inception_3a/5x5_reduce"
+  type: "Convolution"
+  bottom: "pool2/3x3_s2"
+  top: "inception_3a/5x5_reduce"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 16
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.2
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_3a/relu_5x5_reduce"
+  type: "ReLU"
+  bottom: "inception_3a/5x5_reduce"
+  top: "inception_3a/5x5_reduce"
+}
+layer {
+  name: "inception_3a/5x5"
+  type: "Convolution"
+  bottom: "inception_3a/5x5_reduce"
+  top: "inception_3a/5x5"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    pad: 2
+    kernel_size: 5
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_3a/relu_5x5"
+  type: "ReLU"
+  bottom: "inception_3a/5x5"
+  top: "inception_3a/5x5"
+}
+layer {
+  name: "inception_3a/pool"
+  type: "Pooling"
+  bottom: "pool2/3x3_s2"
+  top: "inception_3a/pool"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 1
+    pad: 1
+  }
+}
+layer {
+  name: "inception_3a/pool_proj"
+  type: "Convolution"
+  bottom: "inception_3a/pool"
+  top: "inception_3a/pool_proj"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.1
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_3a/relu_pool_proj"
+  type: "ReLU"
+  bottom: "inception_3a/pool_proj"
+  top: "inception_3a/pool_proj"
+}
+layer {
+  name: "inception_3a/output"
+  type: "Concat"
+  bottom: "inception_3a/1x1"
+  bottom: "inception_3a/3x3"
+  bottom: "inception_3a/5x5"
+  bottom: "inception_3a/pool_proj"
+  top: "inception_3a/output"
+}
+layer {
+  name: "inception_3b/1x1"
+  type: "Convolution"
+  bottom: "inception_3a/output"
+  top: "inception_3b/1x1"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 128
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_3b/relu_1x1"
+  type: "ReLU"
+  bottom: "inception_3b/1x1"
+  top: "inception_3b/1x1"
+}
+layer {
+  name: "inception_3b/3x3_reduce"
+  type: "Convolution"
+  bottom: "inception_3a/output"
+  top: "inception_3b/3x3_reduce"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 128
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.09
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_3b/relu_3x3_reduce"
+  type: "ReLU"
+  bottom: "inception_3b/3x3_reduce"
+  top: "inception_3b/3x3_reduce"
+}
+layer {
+  name: "inception_3b/3x3"
+  type: "Convolution"
+  bottom: "inception_3b/3x3_reduce"
+  top: "inception_3b/3x3"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 192
+    pad: 1
+    kernel_size: 3
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_3b/relu_3x3"
+  type: "ReLU"
+  bottom: "inception_3b/3x3"
+  top: "inception_3b/3x3"
+}
+layer {
+  name: "inception_3b/5x5_reduce"
+  type: "Convolution"
+  bottom: "inception_3a/output"
+  top: "inception_3b/5x5_reduce"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.2
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_3b/relu_5x5_reduce"
+  type: "ReLU"
+  bottom: "inception_3b/5x5_reduce"
+  top: "inception_3b/5x5_reduce"
+}
+layer {
+  name: "inception_3b/5x5"
+  type: "Convolution"
+  bottom: "inception_3b/5x5_reduce"
+  top: "inception_3b/5x5"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 96
+    pad: 2
+    kernel_size: 5
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_3b/relu_5x5"
+  type: "ReLU"
+  bottom: "inception_3b/5x5"
+  top: "inception_3b/5x5"
+}
+layer {
+  name: "inception_3b/pool"
+  type: "Pooling"
+  bottom: "inception_3a/output"
+  top: "inception_3b/pool"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 1
+    pad: 1
+  }
+}
+layer {
+  name: "inception_3b/pool_proj"
+  type: "Convolution"
+  bottom: "inception_3b/pool"
+  top: "inception_3b/pool_proj"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.1
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_3b/relu_pool_proj"
+  type: "ReLU"
+  bottom: "inception_3b/pool_proj"
+  top: "inception_3b/pool_proj"
+}
+layer {
+  name: "inception_3b/output"
+  type: "Concat"
+  bottom: "inception_3b/1x1"
+  bottom: "inception_3b/3x3"
+  bottom: "inception_3b/5x5"
+  bottom: "inception_3b/pool_proj"
+  top: "inception_3b/output"
+}
+layer {
+  name: "pool3/3x3_s2"
+  type: "Pooling"
+  bottom: "inception_3b/output"
+  top: "pool3/3x3_s2"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 2
+  }
+}
+layer {
+  name: "inception_4a/1x1"
+  type: "Convolution"
+  bottom: "pool3/3x3_s2"
+  top: "inception_4a/1x1"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 192
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4a/relu_1x1"
+  type: "ReLU"
+  bottom: "inception_4a/1x1"
+  top: "inception_4a/1x1"
+}
+layer {
+  name: "inception_4a/3x3_reduce"
+  type: "Convolution"
+  bottom: "pool3/3x3_s2"
+  top: "inception_4a/3x3_reduce"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 96
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.09
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4a/relu_3x3_reduce"
+  type: "ReLU"
+  bottom: "inception_4a/3x3_reduce"
+  top: "inception_4a/3x3_reduce"
+}
+layer {
+  name: "inception_4a/3x3"
+  type: "Convolution"
+  bottom: "inception_4a/3x3_reduce"
+  top: "inception_4a/3x3"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 208
+    pad: 1
+    kernel_size: 3
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4a/relu_3x3"
+  type: "ReLU"
+  bottom: "inception_4a/3x3"
+  top: "inception_4a/3x3"
+}
+layer {
+  name: "inception_4a/5x5_reduce"
+  type: "Convolution"
+  bottom: "pool3/3x3_s2"
+  top: "inception_4a/5x5_reduce"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 16
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.2
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4a/relu_5x5_reduce"
+  type: "ReLU"
+  bottom: "inception_4a/5x5_reduce"
+  top: "inception_4a/5x5_reduce"
+}
+layer {
+  name: "inception_4a/5x5"
+  type: "Convolution"
+  bottom: "inception_4a/5x5_reduce"
+  top: "inception_4a/5x5"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 48
+    pad: 2
+    kernel_size: 5
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4a/relu_5x5"
+  type: "ReLU"
+  bottom: "inception_4a/5x5"
+  top: "inception_4a/5x5"
+}
+layer {
+  name: "inception_4a/pool"
+  type: "Pooling"
+  bottom: "pool3/3x3_s2"
+  top: "inception_4a/pool"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 1
+    pad: 1
+  }
+}
+layer {
+  name: "inception_4a/pool_proj"
+  type: "Convolution"
+  bottom: "inception_4a/pool"
+  top: "inception_4a/pool_proj"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.1
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4a/relu_pool_proj"
+  type: "ReLU"
+  bottom: "inception_4a/pool_proj"
+  top: "inception_4a/pool_proj"
+}
+layer {
+  name: "inception_4a/output"
+  type: "Concat"
+  bottom: "inception_4a/1x1"
+  bottom: "inception_4a/3x3"
+  bottom: "inception_4a/5x5"
+  bottom: "inception_4a/pool_proj"
+  top: "inception_4a/output"
+}
+layer {
+  name: "inception_4b/1x1"
+  type: "Convolution"
+  bottom: "inception_4a/output"
+  top: "inception_4b/1x1"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 160
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4b/relu_1x1"
+  type: "ReLU"
+  bottom: "inception_4b/1x1"
+  top: "inception_4b/1x1"
+}
+layer {
+  name: "inception_4b/3x3_reduce"
+  type: "Convolution"
+  bottom: "inception_4a/output"
+  top: "inception_4b/3x3_reduce"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 112
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.09
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4b/relu_3x3_reduce"
+  type: "ReLU"
+  bottom: "inception_4b/3x3_reduce"
+  top: "inception_4b/3x3_reduce"
+}
+layer {
+  name: "inception_4b/3x3"
+  type: "Convolution"
+  bottom: "inception_4b/3x3_reduce"
+  top: "inception_4b/3x3"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 224
+    pad: 1
+    kernel_size: 3
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4b/relu_3x3"
+  type: "ReLU"
+  bottom: "inception_4b/3x3"
+  top: "inception_4b/3x3"
+}
+layer {
+  name: "inception_4b/5x5_reduce"
+  type: "Convolution"
+  bottom: "inception_4a/output"
+  top: "inception_4b/5x5_reduce"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 24
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.2
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4b/relu_5x5_reduce"
+  type: "ReLU"
+  bottom: "inception_4b/5x5_reduce"
+  top: "inception_4b/5x5_reduce"
+}
+layer {
+  name: "inception_4b/5x5"
+  type: "Convolution"
+  bottom: "inception_4b/5x5_reduce"
+  top: "inception_4b/5x5"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    pad: 2
+    kernel_size: 5
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4b/relu_5x5"
+  type: "ReLU"
+  bottom: "inception_4b/5x5"
+  top: "inception_4b/5x5"
+}
+layer {
+  name: "inception_4b/pool"
+  type: "Pooling"
+  bottom: "inception_4a/output"
+  top: "inception_4b/pool"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 1
+    pad: 1
+  }
+}
+layer {
+  name: "inception_4b/pool_proj"
+  type: "Convolution"
+  bottom: "inception_4b/pool"
+  top: "inception_4b/pool_proj"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.1
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4b/relu_pool_proj"
+  type: "ReLU"
+  bottom: "inception_4b/pool_proj"
+  top: "inception_4b/pool_proj"
+}
+layer {
+  name: "inception_4b/output"
+  type: "Concat"
+  bottom: "inception_4b/1x1"
+  bottom: "inception_4b/3x3"
+  bottom: "inception_4b/5x5"
+  bottom: "inception_4b/pool_proj"
+  top: "inception_4b/output"
+}
+layer {
+  name: "inception_4c/1x1"
+  type: "Convolution"
+  bottom: "inception_4b/output"
+  top: "inception_4c/1x1"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 128
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4c/relu_1x1"
+  type: "ReLU"
+  bottom: "inception_4c/1x1"
+  top: "inception_4c/1x1"
+}
+layer {
+  name: "inception_4c/3x3_reduce"
+  type: "Convolution"
+  bottom: "inception_4b/output"
+  top: "inception_4c/3x3_reduce"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 128
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.09
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4c/relu_3x3_reduce"
+  type: "ReLU"
+  bottom: "inception_4c/3x3_reduce"
+  top: "inception_4c/3x3_reduce"
+}
+layer {
+  name: "inception_4c/3x3"
+  type: "Convolution"
+  bottom: "inception_4c/3x3_reduce"
+  top: "inception_4c/3x3"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 256
+    pad: 1
+    kernel_size: 3
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4c/relu_3x3"
+  type: "ReLU"
+  bottom: "inception_4c/3x3"
+  top: "inception_4c/3x3"
+}
+layer {
+  name: "inception_4c/5x5_reduce"
+  type: "Convolution"
+  bottom: "inception_4b/output"
+  top: "inception_4c/5x5_reduce"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 24
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.2
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4c/relu_5x5_reduce"
+  type: "ReLU"
+  bottom: "inception_4c/5x5_reduce"
+  top: "inception_4c/5x5_reduce"
+}
+layer {
+  name: "inception_4c/5x5"
+  type: "Convolution"
+  bottom: "inception_4c/5x5_reduce"
+  top: "inception_4c/5x5"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    pad: 2
+    kernel_size: 5
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4c/relu_5x5"
+  type: "ReLU"
+  bottom: "inception_4c/5x5"
+  top: "inception_4c/5x5"
+}
+layer {
+  name: "inception_4c/pool"
+  type: "Pooling"
+  bottom: "inception_4b/output"
+  top: "inception_4c/pool"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 1
+    pad: 1
+  }
+}
+layer {
+  name: "inception_4c/pool_proj"
+  type: "Convolution"
+  bottom: "inception_4c/pool"
+  top: "inception_4c/pool_proj"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.1
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4c/relu_pool_proj"
+  type: "ReLU"
+  bottom: "inception_4c/pool_proj"
+  top: "inception_4c/pool_proj"
+}
+layer {
+  name: "inception_4c/output"
+  type: "Concat"
+  bottom: "inception_4c/1x1"
+  bottom: "inception_4c/3x3"
+  bottom: "inception_4c/5x5"
+  bottom: "inception_4c/pool_proj"
+  top: "inception_4c/output"
+}
+layer {
+  name: "inception_4d/1x1"
+  type: "Convolution"
+  bottom: "inception_4c/output"
+  top: "inception_4d/1x1"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 112
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4d/relu_1x1"
+  type: "ReLU"
+  bottom: "inception_4d/1x1"
+  top: "inception_4d/1x1"
+}
+layer {
+  name: "inception_4d/3x3_reduce"
+  type: "Convolution"
+  bottom: "inception_4c/output"
+  top: "inception_4d/3x3_reduce"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 144
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.09
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4d/relu_3x3_reduce"
+  type: "ReLU"
+  bottom: "inception_4d/3x3_reduce"
+  top: "inception_4d/3x3_reduce"
+}
+layer {
+  name: "inception_4d/3x3"
+  type: "Convolution"
+  bottom: "inception_4d/3x3_reduce"
+  top: "inception_4d/3x3"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 288
+    pad: 1
+    kernel_size: 3
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4d/relu_3x3"
+  type: "ReLU"
+  bottom: "inception_4d/3x3"
+  top: "inception_4d/3x3"
+}
+layer {
+  name: "inception_4d/5x5_reduce"
+  type: "Convolution"
+  bottom: "inception_4c/output"
+  top: "inception_4d/5x5_reduce"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.2
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4d/relu_5x5_reduce"
+  type: "ReLU"
+  bottom: "inception_4d/5x5_reduce"
+  top: "inception_4d/5x5_reduce"
+}
+layer {
+  name: "inception_4d/5x5"
+  type: "Convolution"
+  bottom: "inception_4d/5x5_reduce"
+  top: "inception_4d/5x5"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    pad: 2
+    kernel_size: 5
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4d/relu_5x5"
+  type: "ReLU"
+  bottom: "inception_4d/5x5"
+  top: "inception_4d/5x5"
+}
+layer {
+  name: "inception_4d/pool"
+  type: "Pooling"
+  bottom: "inception_4c/output"
+  top: "inception_4d/pool"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 1
+    pad: 1
+  }
+}
+layer {
+  name: "inception_4d/pool_proj"
+  type: "Convolution"
+  bottom: "inception_4d/pool"
+  top: "inception_4d/pool_proj"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.1
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4d/relu_pool_proj"
+  type: "ReLU"
+  bottom: "inception_4d/pool_proj"
+  top: "inception_4d/pool_proj"
+}
+layer {
+  name: "inception_4d/output"
+  type: "Concat"
+  bottom: "inception_4d/1x1"
+  bottom: "inception_4d/3x3"
+  bottom: "inception_4d/5x5"
+  bottom: "inception_4d/pool_proj"
+  top: "inception_4d/output"
+}
+layer {
+  name: "inception_4e/1x1"
+  type: "Convolution"
+  bottom: "inception_4d/output"
+  top: "inception_4e/1x1"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 256
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4e/relu_1x1"
+  type: "ReLU"
+  bottom: "inception_4e/1x1"
+  top: "inception_4e/1x1"
+}
+layer {
+  name: "inception_4e/3x3_reduce"
+  type: "Convolution"
+  bottom: "inception_4d/output"
+  top: "inception_4e/3x3_reduce"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 160
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.09
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4e/relu_3x3_reduce"
+  type: "ReLU"
+  bottom: "inception_4e/3x3_reduce"
+  top: "inception_4e/3x3_reduce"
+}
+layer {
+  name: "inception_4e/3x3"
+  type: "Convolution"
+  bottom: "inception_4e/3x3_reduce"
+  top: "inception_4e/3x3"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 320
+    pad: 1
+    kernel_size: 3
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4e/relu_3x3"
+  type: "ReLU"
+  bottom: "inception_4e/3x3"
+  top: "inception_4e/3x3"
+}
+layer {
+  name: "inception_4e/5x5_reduce"
+  type: "Convolution"
+  bottom: "inception_4d/output"
+  top: "inception_4e/5x5_reduce"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.2
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4e/relu_5x5_reduce"
+  type: "ReLU"
+  bottom: "inception_4e/5x5_reduce"
+  top: "inception_4e/5x5_reduce"
+}
+layer {
+  name: "inception_4e/5x5"
+  type: "Convolution"
+  bottom: "inception_4e/5x5_reduce"
+  top: "inception_4e/5x5"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 128
+    pad: 2
+    kernel_size: 5
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4e/relu_5x5"
+  type: "ReLU"
+  bottom: "inception_4e/5x5"
+  top: "inception_4e/5x5"
+}
+layer {
+  name: "inception_4e/pool"
+  type: "Pooling"
+  bottom: "inception_4d/output"
+  top: "inception_4e/pool"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 1
+    pad: 1
+  }
+}
+layer {
+  name: "inception_4e/pool_proj"
+  type: "Convolution"
+  bottom: "inception_4e/pool"
+  top: "inception_4e/pool_proj"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 128
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.1
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_4e/relu_pool_proj"
+  type: "ReLU"
+  bottom: "inception_4e/pool_proj"
+  top: "inception_4e/pool_proj"
+}
+layer {
+  name: "inception_4e/output"
+  type: "Concat"
+  bottom: "inception_4e/1x1"
+  bottom: "inception_4e/3x3"
+  bottom: "inception_4e/5x5"
+  bottom: "inception_4e/pool_proj"
+  top: "inception_4e/output"
+}
+layer {
+  name: "pool4/3x3_s2"
+  type: "Pooling"
+  bottom: "inception_4e/output"
+  top: "pool4/3x3_s2"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 2
+  }
+}
+layer {
+  name: "inception_5a/1x1"
+  type: "Convolution"
+  bottom: "pool4/3x3_s2"
+  top: "inception_5a/1x1"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 256
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_5a/relu_1x1"
+  type: "ReLU"
+  bottom: "inception_5a/1x1"
+  top: "inception_5a/1x1"
+}
+layer {
+  name: "inception_5a/3x3_reduce"
+  type: "Convolution"
+  bottom: "pool4/3x3_s2"
+  top: "inception_5a/3x3_reduce"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 160
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.09
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_5a/relu_3x3_reduce"
+  type: "ReLU"
+  bottom: "inception_5a/3x3_reduce"
+  top: "inception_5a/3x3_reduce"
+}
+layer {
+  name: "inception_5a/3x3"
+  type: "Convolution"
+  bottom: "inception_5a/3x3_reduce"
+  top: "inception_5a/3x3"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 320
+    pad: 1
+    kernel_size: 3
+    weight_filler {
+      type: "xavier"
+      std: 0.03
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+  }
+}
+layer {
+  name: "inception_5a/relu_3x3"
+  type: "ReLU"
+  bottom: "inception_5a/3x3"
+  top: "inception_5a/3x3"
+}
+layer {
+  name: "inception_5a/5x5_reduce"
+  type: "Convolution"
+  bottom: "pool4/3x3_s2"
+  top: "inception_5a/5x5_reduce"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 1
+    weight_filler {
+      type: "xavier"
+      std: 0.2
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.2
+    }
+I0913 19:40:55.567373 26750 layer_factory.hpp:77] Creating layer data
+I0913 19:40:55.567400 26750 net.cpp:91] Creating Layer data
+I0913 19:40:55.567411 26750 net.cpp:399] data -> data
+I0913 19:40:56.062647 26750 net.cpp:141] Setting up data
+I0913 19:40:56.062711 26750 net.cpp:148] Top shape: 10 3 224 224 (1505280)
+I0913 19:40:56.062717 26750 net.cpp:156] Memory required for data: 6021120
+I0913 19:40:56.062736 26750 layer_factory.hpp:77] Creating layer conv1/7x7_s2
+I0913 19:40:56.062772 26750 net.cpp:91] Creating Layer conv1/7x7_s2
+I0913 19:40:56.062782 26750 net.cpp:425] conv1/7x7_s2 <- data
+I0913 19:40:56.062794 26750 net.cpp:399] conv1/7x7_s2 -> conv1/7x7_s2
+I0913 19:40:56.242779 26750 net.cpp:141] Setting up conv1/7x7_s2
+I0913 19:40:56.242825 26750 net.cpp:148] Top shape: 10 64 112 112 (8028160)
+I0913 19:40:56.242830 26750 net.cpp:156] Memory required for data: 38133760
+I0913 19:40:56.242856 26750 layer_factory.hpp:77] Creating layer conv1/relu_7x7
+I0913 19:40:56.242877 26750 net.cpp:91] Creating Layer conv1/relu_7x7
+I0913 19:40:56.242882 26750 net.cpp:425] conv1/relu_7x7 <- conv1/7x7_s2
+I0913 19:40:56.242890 26750 net.cpp:386] conv1/relu_7x7 -> conv1/7x7_s2 (in-place)
+I0913 19:40:56.243263 26750 net.cpp:141] Setting up conv1/relu_7x7
+I0913 19:40:56.243275 26750 net.cpp:148] Top shape: 10 64 112 112 (8028160)
+I0913 19:40:56.243280 26750 net.cpp:156] Memory required for data: 70246400
+I0913 19:40:56.243285 26750 layer_factory.hpp:77] Creating layer pool1/3x3_s2
+I0913 19:40:56.243297 26750 net.cpp:91] Creating Layer pool1/3x3_s2
+I0913 19:40:56.243302 26750 net.cpp:425] pool1/3x3_s2 <- conv1/7x7_s2
+I0913 19:40:56.243310 26750 net.cpp:399] pool1/3x3_s2 -> pool1/3x3_s2
+I0913 19:40:56.243371 26750 net.cpp:141] Setting up pool1/3x3_s2
+I0913 19:40:56.243379 26750 net.cpp:148] Top shape: 10 64 56 56 (2007040)
+I0913 19:40:56.243384 26750 net.cpp:156] Memory required for data: 78274560
+I0913 19:40:56.243389 26750 layer_factory.hpp:77] Creating layer pool1/norm1
+I0913 19:40:56.243405 26750 net.cpp:91] Creating Layer pool1/norm1
+I0913 19:40:56.243410 26750 net.cpp:425] pool1/norm1 <- pool1/3x3_s2
+I0913 19:40:56.243417 26750 net.cpp:399] pool1/norm1 -> pool1/norm1
+I0913 19:40:56.243662 26750 net.cpp:141] Setting up pool1/norm1
+I0913 19:40:56.243674 26750 net.cpp:148] Top shape: 10 64 56 56 (2007040)
+I0913 19:40:56.243679 26750 net.cpp:156] Memory required for data: 86302720
+I0913 19:40:56.243683 26750 layer_factory.hpp:77] Creating layer conv2/3x3_reduce
+I0913 19:40:56.243702 26750 net.cpp:91] Creating Layer conv2/3x3_reduce
+I0913 19:40:56.243707 26750 net.cpp:425] conv2/3x3_reduce <- pool1/norm1
+I0913 19:40:56.243715 26750 net.cpp:399] conv2/3x3_reduce -> conv2/3x3_reduce
+I0913 19:40:56.245873 26750 net.cpp:141] Setting up conv2/3x3_reduce
+I0913 19:40:56.245904 26750 net.cpp:148] Top shape: 10 64 56 56 (2007040)
+I0913 19:40:56.245910 26750 net.cpp:156] Memory required for data: 94330880
+I0913 19:40:56.245929 26750 layer_factory.hpp:77] Creating layer conv2/relu_3x3_reduce
+I0913 19:40:56.245947 26750 net.cpp:91] Creating Layer conv2/relu_3x3_reduce
+I0913 19:40:56.245954 26750 net.cpp:425] conv2/relu_3x3_reduce <- conv2/3x3_reduce
+I0913 19:40:56.245962 26750 net.cpp:386] conv2/relu_3x3_reduce -> conv2/3x3_reduce (in-place)
+I0913 19:40:56.246327 26750 net.cpp:141] Setting up conv2/relu_3x3_reduce
+I0913 19:40:56.246340 26750 net.cpp:148] Top shape: 10 64 56 56 (2007040)
+I0913 19:40:56.246345 26750 net.cpp:156] Memory required for data: 102359040
+I0913 19:40:56.246351 26750 layer_factory.hpp:77] Creating layer conv2/3x3
+I0913 19:40:56.246368 26750 net.cpp:91] Creating Layer conv2/3x3
+I0913 19:40:56.246373 26750 net.cpp:425] conv2/3x3 <- conv2/3x3_reduce
+I0913 19:40:56.246382 26750 net.cpp:399] conv2/3x3 -> conv2/3x3
+I0913 19:40:56.249347 26750 net.cpp:141] Setting up conv2/3x3
+I0913 19:40:56.249366 26750 net.cpp:148] Top shape: 10 192 56 56 (6021120)
+I0913 19:40:56.249372 26750 net.cpp:156] Memory required for data: 126443520
+I0913 19:40:56.249384 26750 layer_factory.hpp:77] Creating layer conv2/relu_3x3
+I0913 19:40:56.249397 26750 net.cpp:91] Creating Layer conv2/relu_3x3
+I0913 19:40:56.249402 26750 net.cpp:425] conv2/relu_3x3 <- conv2/3x3
+I0913 19:40:56.249409 26750 net.cpp:386] conv2/relu_3x3 -> conv2/3x3 (in-place)
+I0913 19:40:56.249622 26750 net.cpp:141] Setting up conv2/relu_3x3
+I0913 19:40:56.249634 26750 net.cpp:148] Top shape: 10 192 56 56 (6021120)
+I0913 19:40:56.249639 26750 net.cpp:156] Memory required for data: 150528000
+I0913 19:40:56.249644 26750 layer_factory.hpp:77] Creating layer conv2/norm2
+I0913 19:40:56.249655 26750 net.cpp:91] Creating Layer conv2/norm2
+I0913 19:40:56.249660 26750 net.cpp:425] conv2/norm2 <- conv2/3x3
+I0913 19:40:56.249666 26750 net.cpp:399] conv2/norm2 -> conv2/norm2
+I0913 19:40:56.250067 26750 net.cpp:141] Setting up conv2/norm2
+I0913 19:40:56.250080 26750 net.cpp:148] Top shape: 10 192 56 56 (6021120)
+I0913 19:40:56.250084 26750 net.cpp:156] Memory required for data: 174612480
+I0913 19:40:56.250090 26750 layer_factory.hpp:77] Creating layer pool2/3x3_s2
+I0913 19:40:56.250102 26750 net.cpp:91] Creating Layer pool2/3x3_s2
+I0913 19:40:56.250107 26750 net.cpp:425] pool2/3x3_s2 <- conv2/norm2
+I0913 19:40:56.250113 26750 net.cpp:399] pool2/3x3_s2 -> pool2/3x3_s2
+I0913 19:40:56.250159 26750 net.cpp:141] Setting up pool2/3x3_s2
+I0913 19:40:56.250169 26750 net.cpp:148] Top shape: 10 192 28 28 (1505280)
+I0913 19:40:56.250172 26750 net.cpp:156] Memory required for data: 180633600
+I0913 19:40:56.250177 26750 layer_factory.hpp:77] Creating layer pool2/3x3_s2_pool2/3x3_s2_0_split
+I0913 19:40:56.250197 26750 net.cpp:91] Creating Layer pool2/3x3_s2_pool2/3x3_s2_0_split
+I0913 19:40:56.250202 26750 net.cpp:425] pool2/3x3_s2_pool2/3x3_s2_0_split <- pool2/3x3_s2
+I0913 19:40:56.250210 26750 net.cpp:399] pool2/3x3_s2_pool2/3x3_s2_0_split -> pool2/3x3_s2_pool2/3x3_s2_0_split_0
+I0913 19:40:56.250219 26750 net.cpp:399] pool2/3x3_s2_pool2/3x3_s2_0_split -> pool2/3x3_s2_pool2/3x3_s2_0_split_1
+I0913 19:40:56.250227 26750 net.cpp:399] pool2/3x3_s2_pool2/3x3_s2_0_split -> pool2/3x3_s2_pool2/3x3_s2_0_split_2
+I0913 19:40:56.250236 26750 net.cpp:399] pool2/3x3_s2_pool2/3x3_s2_0_split -> pool2/3x3_s2_pool2/3x3_s2_0_split_3
+I0913 19:40:56.250296 26750 net.cpp:141] Setting up pool2/3x3_s2_pool2/3x3_s2_0_split
+I0913 19:40:56.250305 26750 net.cpp:148] Top shape: 10 192 28 28 (1505280)
+I0913 19:40:56.250311 26750 net.cpp:148] Top shape: 10 192 28 28 (1505280)
+I0913 19:40:56.250316 26750 net.cpp:148] Top shape: 10 192 28 28 (1505280)
+I0913 19:40:56.250321 26750 net.cpp:148] Top shape: 10 192 28 28 (1505280)
+I0913 19:40:56.250325 26750 net.cpp:156] Memory required for data: 204718080
+I0913 19:40:56.250330 26750 layer_factory.hpp:77] Creating layer inception_3a/1x1
+I0913 19:40:56.250344 26750 net.cpp:91] Creating Layer inception_3a/1x1
+I0913 19:40:56.250349 26750 net.cpp:425] inception_3a/1x1 <- pool2/3x3_s2_pool2/3x3_s2_0_split_0
+I0913 19:40:56.250371 26750 net.cpp:399] inception_3a/1x1 -> inception_3a/1x1
+I0913 19:40:56.252197 26750 net.cpp:141] Setting up inception_3a/1x1
+I0913 19:40:56.252215 26750 net.cpp:148] Top shape: 10 64 28 28 (501760)
+I0913 19:40:56.252220 26750 net.cpp:156] Memory required for data: 206725120
+I0913 19:40:56.252230 26750 layer_factory.hpp:77] Creating layer inception_3a/relu_1x1
+I0913 19:40:56.252240 26750 net.cpp:91] Creating Layer inception_3a/relu_1x1
+I0913 19:40:56.252245 26750 net.cpp:425] inception_3a/relu_1x1 <- inception_3a/1x1
+I0913 19:40:56.252252 26750 net.cpp:386] inception_3a/relu_1x1 -> inception_3a/1x1 (in-place)
+I0913 19:40:56.252634 26750 net.cpp:141] Setting up inception_3a/relu_1x1
+I0913 19:40:56.252645 26750 net.cpp:148] Top shape: 10 64 28 28 (501760)
+I0913 19:40:56.252650 26750 net.cpp:156] Memory required for data: 208732160
+I0913 19:40:56.252655 26750 layer_factory.hpp:77] Creating layer inception_3a/3x3_reduce
+I0913 19:40:56.252671 26750 net.cpp:91] Creating Layer inception_3a/3x3_reduce
+I0913 19:40:56.252676 26750 net.cpp:425] inception_3a/3x3_reduce <- pool2/3x3_s2_pool2/3x3_s2_0_split_1
+I0913 19:40:56.252687 26750 net.cpp:399] inception_3a/3x3_reduce -> inception_3a/3x3_reduce
+I0913 19:40:56.255077 26750 net.cpp:141] Setting up inception_3a/3x3_reduce
+I0913 19:40:56.255095 26750 net.cpp:148] Top shape: 10 96 28 28 (752640)
+I0913 19:40:56.255100 26750 net.cpp:156] Memory required for data: 211742720
+I0913 19:40:56.255113 26750 layer_factory.hpp:77] Creating layer inception_3a/relu_3x3_reduce
+I0913 19:40:56.255122 26750 net.cpp:91] Creating Layer inception_3a/relu_3x3_reduce
+I0913 19:40:56.255127 26750 net.cpp:425] inception_3a/relu_3x3_reduce <- inception_3a/3x3_reduce
+I0913 19:40:56.255137 26750 net.cpp:386] inception_3a/relu_3x3_reduce -> inception_3a/3x3_reduce (in-place)
+I0913 19:40:56.255368 26750 net.cpp:141] Setting up inception_3a/relu_3x3_reduce
+I0913 19:40:56.255381 26750 net.cpp:148] Top shape: 10 96 28 28 (752640)
+I0913 19:40:56.255385 26750 net.cpp:156] Memory required for data: 214753280
+I0913 19:40:56.255390 26750 layer_factory.hpp:77] Creating layer inception_3a/3x3
+I0913 19:40:56.255409 26750 net.cpp:91] Creating Layer inception_3a/3x3
+I0913 19:40:56.255414 26750 net.cpp:425] inception_3a/3x3 <- inception_3a/3x3_reduce
+I0913 19:40:56.255424 26750 net.cpp:399] inception_3a/3x3 -> inception_3a/3x3
+I0913 19:40:56.257561 26750 net.cpp:141] Setting up inception_3a/3x3
+I0913 19:40:56.257578 26750 net.cpp:148] Top shape: 10 128 28 28 (1003520)
+I0913 19:40:56.257583 26750 net.cpp:156] Memory required for data: 218767360
+I0913 19:40:56.257591 26750 layer_factory.hpp:77] Creating layer inception_3a/relu_3x3
+I0913 19:40:56.257604 26750 net.cpp:91] Creating Layer inception_3a/relu_3x3
+I0913 19:40:56.257611 26750 net.cpp:425] inception_3a/relu_3x3 <- inception_3a/3x3
+I0913 19:40:56.257617 26750 net.cpp:386] inception_3a/relu_3x3 -> inception_3a/3x3 (in-place)
+I0913 19:40:56.257997 26750 net.cpp:141] Setting up inception_3a/relu_3x3
+I0913 19:40:56.258008 26750 net.cpp:148] Top shape: 10 128 28 28 (1003520)
+I0913 19:40:56.258013 26750 net.cpp:156] Memory required for data: 222781440
+I0913 19:40:56.258018 26750 layer_factory.hpp:77] Creating layer inception_3a/5x5_reduce
+I0913 19:40:56.258035 26750 net.cpp:91] Creating Layer inception_3a/5x5_reduce
+I0913 19:40:56.258041 26750 net.cpp:425] inception_3a/5x5_reduce <- pool2/3x3_s2_pool2/3x3_s2_0_split_2
+I0913 19:40:56.258050 26750 net.cpp:399] inception_3a/5x5_reduce -> inception_3a/5x5_reduce
+I0913 19:40:56.259238 26750 net.cpp:141] Setting up inception_3a/5x5_reduce
+I0913 19:40:56.259254 26750 net.cpp:148] Top shape: 10 16 28 28 (125440)
+I0913 19:40:56.259259 26750 net.cpp:156] Memory required for data: 223283200
+I0913 19:40:56.259268 26750 layer_factory.hpp:77] Creating layer inception_3a/relu_5x5_reduce
+I0913 19:40:56.259280 26750 net.cpp:91] Creating Layer inception_3a/relu_5x5_reduce
+I0913 19:40:56.259286 26750 net.cpp:425] inception_3a/relu_5x5_reduce <- inception_3a/5x5_reduce
+I0913 19:40:56.259292 26750 net.cpp:386] inception_3a/relu_5x5_reduce -> inception_3a/5x5_reduce (in-place)
+I0913 19:40:56.259667 26750 net.cpp:141] Setting up inception_3a/relu_5x5_reduce
+I0913 19:40:56.259680 26750 net.cpp:148] Top shape: 10 16 28 28 (125440)
+I0913 19:40:56.259685 26750 net.cpp:156] Memory required for data: 223784960
+I0913 19:40:56.259690 26750 layer_factory.hpp:77] Creating layer inception_3a/5x5
+I0913 19:40:56.259706 26750 net.cpp:91] Creating Layer inception_3a/5x5
+I0913 19:40:56.259711 26750 net.cpp:425] inception_3a/5x5 <- inception_3a/5x5_reduce
+I0913 19:40:56.259719 26750 net.cpp:399] inception_3a/5x5 -> inception_3a/5x5
+I0913 19:40:56.261646 26750 net.cpp:141] Setting up inception_3a/5x5
+I0913 19:40:56.261662 26750 net.cpp:148] Top shape: 10 32 28 28 (250880)
+I0913 19:40:56.261667 26750 net.cpp:156] Memory required for data: 224788480
+I0913 19:40:56.261677 26750 layer_factory.hpp:77] Creating layer inception_3a/relu_5x5
+I0913 19:40:56.261687 26750 net.cpp:91] Creating Layer inception_3a/relu_5x5
+I0913 19:40:56.261693 26750 net.cpp:425] inception_3a/relu_5x5 <- inception_3a/5x5
+I0913 19:40:56.261700 26750 net.cpp:386] inception_3a/relu_5x5 -> inception_3a/5x5 (in-place)
+I0913 19:40:56.261925 26750 net.cpp:141] Setting up inception_3a/relu_5x5
+I0913 19:40:56.261936 26750 net.cpp:148] Top shape: 10 32 28 28 (250880)
+I0913 19:40:56.261940 26750 net.cpp:156] Memory required for data: 225792000
+I0913 19:40:56.261945 26750 layer_factory.hpp:77] Creating layer inception_3a/pool
+I0913 19:40:56.261960 26750 net.cpp:91] Creating Layer inception_3a/pool
+I0913 19:40:56.261965 26750 net.cpp:425] inception_3a/pool <- pool2/3x3_s2_pool2/3x3_s2_0_split_3
+I0913 19:40:56.261973 26750 net.cpp:399] inception_3a/pool -> inception_3a/pool
+I0913 19:40:56.262029 26750 net.cpp:141] Setting up inception_3a/pool
+I0913 19:40:56.262038 26750 net.cpp:148] Top shape: 10 192 28 28 (1505280)
+I0913 19:40:56.262042 26750 net.cpp:156] Memory required for data: 231813120
+I0913 19:40:56.262047 26750 layer_factory.hpp:77] Creating layer inception_3a/pool_proj
+I0913 19:40:56.262060 26750 net.cpp:91] Creating Layer inception_3a/pool_proj
+I0913 19:40:56.262066 26750 net.cpp:425] inception_3a/pool_proj <- inception_3a/pool
+I0913 19:40:56.262076 26750 net.cpp:399] inception_3a/pool_proj -> inception_3a/pool_proj
+I0913 19:40:56.263423 26750 net.cpp:141] Setting up inception_3a/pool_proj
+I0913 19:40:56.263439 26750 net.cpp:148] Top shape: 10 32 28 28 (250880)
+I0913 19:40:56.263444 26750 net.cpp:156] Memory required for data: 232816640
+I0913 19:40:56.263461 26750 layer_factory.hpp:77] Creating layer inception_3a/relu_pool_proj
+I0913 19:40:56.263473 26750 net.cpp:91] Creating Layer inception_3a/relu_pool_proj
+I0913 19:40:56.263479 26750 net.cpp:425] inception_3a/relu_pool_proj <- inception_3a/pool_proj
+I0913 19:40:56.263486 26750 net.cpp:386] inception_3a/relu_pool_proj -> inception_3a/pool_proj (in-place)
+I0913 19:40:56.263866 26750 net.cpp:141] Setting up inception_3a/relu_pool_proj
+I0913 19:40:56.263878 26750 net.cpp:148] Top shape: 10 32 28 28 (250880)
+I0913 19:40:56.263882 26750 net.cpp:156] Memory required for data: 233820160
+I0913 19:40:56.263887 26750 layer_factory.hpp:77] Creating layer inception_3a/output
+I0913 19:40:56.263911 26750 net.cpp:91] Creating Layer inception_3a/output
+I0913 19:40:56.263916 26750 net.cpp:425] inception_3a/output <- inception_3a/1x1
+I0913 19:40:56.263922 26750 net.cpp:425] inception_3a/output <- inception_3a/3x3
+I0913 19:40:56.263927 26750 net.cpp:425] inception_3a/output <- inception_3a/5x5
+I0913 19:40:56.263932 26750 net.cpp:425] inception_3a/output <- inception_3a/pool_proj
+I0913 19:40:56.263938 26750 net.cpp:399] inception_3a/output -> inception_3a/output
+I0913 19:40:56.263984 26750 net.cpp:141] Setting up inception_3a/output
+I0913 19:40:56.263993 26750 net.cpp:148] Top shape: 10 256 28 28 (2007040)
+I0913 19:40:56.263998 26750 net.cpp:156] Memory required for data: 241848320
+I0913 19:40:56.264003 26750 layer_factory.hpp:77] Creating layer inception_3a/output_inception_3a/output_0_split
+I0913 19:40:56.264010 26750 net.cpp:91] Creating Layer inception_3a/output_inception_3a/output_0_split
+I0913 19:40:56.264015 26750 net.cpp:425] inception_3a/output_inception_3a/output_0_split <- inception_3a/output
+I0913 19:40:56.264025 26750 net.cpp:399] inception_3a/output_inception_3a/output_0_split -> inception_3a/output_inception_3a/output_0_split_0
+I0913 19:40:56.264034 26750 net.cpp:399] inception_3a/output_inception_3a/output_0_split -> inception_3a/output_inception_3a/output_0_split_1
+I0913 19:40:56.264042 26750 net.cpp:399] inception_3a/output_inception_3a/output_0_split -> inception_3a/output_inception_3a/output_0_split_2
+I0913 19:40:56.264050 26750 net.cpp:399] inception_3a/output_inception_3a/output_0_split -> inception_3a/output_inception_3a/output_0_split_3
+I0913 19:40:56.264137 26750 net.cpp:141] Setting up inception_3a/output_inception_3a/output_0_split
+I0913 19:40:56.264147 26750 net.cpp:148] Top shape: 10 256 28 28 (2007040)
+I0913 19:40:56.264153 26750 net.cpp:148] Top shape: 10 256 28 28 (2007040)
+I0913 19:40:56.264158 26750 net.cpp:148] Top shape: 10 256 28 28 (2007040)
+I0913 19:40:56.264163 26750 net.cpp:148] Top shape: 10 256 28 28 (2007040)
+I0913 19:40:56.264174 26750 net.cpp:156] Memory required for data: 273960960
+I0913 19:40:56.264178 26750 layer_factory.hpp:77] Creating layer inception_3b/1x1
+I0913 19:40:56.264196 26750 net.cpp:91] Creating Layer inception_3b/1x1
+I0913 19:40:56.264201 26750 net.cpp:425] inception_3b/1x1 <- inception_3a/output_inception_3a/output_0_split_0
+I0913 19:40:56.264210 26750 net.cpp:399] inception_3b/1x1 -> inception_3b/1x1
+I0913 19:40:56.265593 26750 net.cpp:141] Setting up inception_3b/1x1
+I0913 19:40:56.265605 26750 net.cpp:148] Top shape: 10 128 28 28 (1003520)
+I0913 19:40:56.265610 26750 net.cpp:156] Memory required for data: 277975040
+I0913 19:40:56.265620 26750 layer_factory.hpp:77] Creating layer inception_3b/relu_1x1
+I0913 19:40:56.265632 26750 net.cpp:91] Creating Layer inception_3b/relu_1x1
+I0913 19:40:56.265638 26750 net.cpp:425] inception_3b/relu_1x1 <- inception_3b/1x1
+I0913 19:40:56.265646 26750 net.cpp:386] inception_3b/relu_1x1 -> inception_3b/1x1 (in-place)
+I0913 19:40:56.266029 26750 net.cpp:141] Setting up inception_3b/relu_1x1
+I0913 19:40:56.266041 26750 net.cpp:148] Top shape: 10 128 28 28 (1003520)
+I0913 19:40:56.266046 26750 net.cpp:156] Memory required for data: 281989120
+I0913 19:40:56.266050 26750 layer_factory.hpp:77] Creating layer inception_3b/3x3_reduce
+I0913 19:40:56.266065 26750 net.cpp:91] Creating Layer inception_3b/3x3_reduce
+I0913 19:40:56.266070 26750 net.cpp:425] inception_3b/3x3_reduce <- inception_3a/output_inception_3a/output_0_split_1
+I0913 19:40:56.266078 26750 net.cpp:399] inception_3b/3x3_reduce -> inception_3b/3x3_reduce
+I0913 19:40:56.267652 26750 net.cpp:141] Setting up inception_3b/3x3_reduce
+I0913 19:40:56.267668 26750 net.cpp:148] Top shape: 10 128 28 28 (1003520)
+I0913 19:40:56.267673 26750 net.cpp:156] Memory required for data: 286003200
+I0913 19:40:56.267683 26750 layer_factory.hpp:77] Creating layer inception_3b/relu_3x3_reduce
+I0913 19:40:56.267693 26750 net.cpp:91] Creating Layer inception_3b/relu_3x3_reduce
+I0913 19:40:56.267699 26750 net.cpp:425] inception_3b/relu_3x3_reduce <- inception_3b/3x3_reduce
+I0913 19:40:56.267706 26750 net.cpp:386] inception_3b/relu_3x3_reduce -> inception_3b/3x3_reduce (in-place)
+I0913 19:40:56.267925 26750 net.cpp:141] Setting up inception_3b/relu_3x3_reduce
+I0913 19:40:56.267940 26750 net.cpp:148] Top shape: 10 128 28 28 (1003520)
+I0913 19:40:56.267943 26750 net.cpp:156] Memory required for data: 290017280
+I0913 19:40:56.267948 26750 layer_factory.hpp:77] Creating layer inception_3b/3x3
+I0913 19:40:56.267963 26750 net.cpp:91] Creating Layer inception_3b/3x3
+I0913 19:40:56.267969 26750 net.cpp:425] inception_3b/3x3 <- inception_3b/3x3_reduce
+I0913 19:40:56.267977 26750 net.cpp:399] inception_3b/3x3 -> inception_3b/3x3
+I0913 19:40:56.271677 26750 net.cpp:141] Setting up inception_3b/3x3
+I0913 19:40:56.271695 26750 net.cpp:148] Top shape: 10 192 28 28 (1505280)
+I0913 19:40:56.271700 26750 net.cpp:156] Memory required for data: 296038400
+I0913 19:40:56.271709 26750 layer_factory.hpp:77] Creating layer inception_3b/relu_3x3
+I0913 19:40:56.271735 26750 net.cpp:91] Creating Layer inception_3b/relu_3x3
+I0913 19:40:56.271742 26750 net.cpp:425] inception_3b/relu_3x3 <- inception_3b/3x3
+I0913 19:40:56.271751 26750 net.cpp:386] inception_3b/relu_3x3 -> inception_3b/3x3 (in-place)
+I0913 19:40:56.272158 26750 net.cpp:141] Setting up inception_3b/relu_3x3
+I0913 19:40:56.272173 26750 net.cpp:148] Top shape: 10 192 28 28 (1505280)
+I0913 19:40:56.272178 26750 net.cpp:156] Memory required for data: 302059520
+I0913 19:40:56.272183 26750 layer_factory.hpp:77] Creating layer inception_3b/5x5_reduce
+I0913 19:40:56.272198 26750 net.cpp:91] Creating Layer inception_3b/5x5_reduce
+I0913 19:40:56.272204 26750 net.cpp:425] inception_3b/5x5_reduce <- inception_3a/output_inception_3a/output_0_split_2
+I0913 19:40:56.272212 26750 net.cpp:399] inception_3b/5x5_reduce -> inception_3b/5x5_reduce
+I0913 19:40:56.273447 26750 net.cpp:141] Setting up inception_3b/5x5_reduce
+I0913 19:40:56.273463 26750 net.cpp:148] Top shape: 10 32 28 28 (250880)
+I0913 19:40:56.273468 26750 net.cpp:156] Memory required for data: 303063040
+I0913 19:40:56.273476 26750 layer_factory.hpp:77] Creating layer inception_3b/relu_5x5_reduce
+I0913 19:40:56.273485 26750 net.cpp:91] Creating Layer inception_3b/relu_5x5_reduce
+I0913 19:40:56.273490 26750 net.cpp:425] inception_3b/relu_5x5_reduce <- inception_3b/5x5_reduce
+I0913 19:40:56.273499 26750 net.cpp:386] inception_3b/relu_5x5_reduce -> inception_3b/5x5_reduce (in-place)
+I0913 19:40:56.273886 26750 net.cpp:141] Setting up inception_3b/relu_5x5_reduce
+I0913 19:40:56.273898 26750 net.cpp:148] Top shape: 10 32 28 28 (250880)
+I0913 19:40:56.273903 26750 net.cpp:156] Memory required for data: 304066560
+I0913 19:40:56.273908 26750 layer_factory.hpp:77] Creating layer inception_3b/5x5
+I0913 19:40:56.273923 26750 net.cpp:91] Creating Layer inception_3b/5x5
+I0913 19:40:56.273929 26750 net.cpp:425] inception_3b/5x5 <- inception_3b/5x5_reduce
+I0913 19:40:56.273941 26750 net.cpp:399] inception_3b/5x5 -> inception_3b/5x5
+I0913 19:40:56.276517 26750 net.cpp:141] Setting up inception_3b/5x5
+I0913 19:40:56.276535 26750 net.cpp:148] Top shape: 10 96 28 28 (752640)
+I0913 19:40:56.276540 26750 net.cpp:156] Memory required for data: 307077120
+I0913 19:40:56.276547 26750 layer_factory.hpp:77] Creating layer inception_3b/relu_5x5
+I0913 19:40:56.276561 26750 net.cpp:91] Creating Layer inception_3b/relu_5x5
+I0913 19:40:56.276567 26750 net.cpp:425] inception_3b/relu_5x5 <- inception_3b/5x5
+I0913 19:40:56.276576 26750 net.cpp:386] inception_3b/relu_5x5 -> inception_3b/5x5 (in-place)
+I0913 19:40:56.276800 26750 net.cpp:141] Setting up inception_3b/relu_5x5
+I0913 19:40:56.276811 26750 net.cpp:148] Top shape: 10 96 28 28 (752640)
+I0913 19:40:56.276815 26750 net.cpp:156] Memory required for data: 310087680
+I0913 19:40:56.276820 26750 layer_factory.hpp:77] Creating layer inception_3b/pool
+I0913 19:40:56.276832 26750 net.cpp:91] Creating Layer inception_3b/pool
+I0913 19:40:56.276837 26750 net.cpp:425] inception_3b/pool <- inception_3a/output_inception_3a/output_0_split_3
+I0913 19:40:56.276846 26750 net.cpp:399] inception_3b/pool -> inception_3b/pool
+I0913 19:40:56.276907 26750 net.cpp:141] Setting up inception_3b/pool
+I0913 19:40:56.276916 26750 net.cpp:148] Top shape: 10 256 28 28 (2007040)
+I0913 19:40:56.276921 26750 net.cpp:156] Memory required for data: 318115840
+I0913 19:40:56.276924 26750 layer_factory.hpp:77] Creating layer inception_3b/pool_proj
+I0913 19:40:56.276939 26750 net.cpp:91] Creating Layer inception_3b/pool_proj
+I0913 19:40:56.276944 26750 net.cpp:425] inception_3b/pool_proj <- inception_3b/pool
+I0913 19:40:56.276952 26750 net.cpp:399] inception_3b/pool_proj -> inception_3b/pool_proj
+I0913 19:40:56.278425 26750 net.cpp:141] Setting up inception_3b/pool_proj
+I0913 19:40:56.278441 26750 net.cpp:148] Top shape: 10 64 28 28 (501760)
+I0913 19:40:56.278446 26750 net.cpp:156] Memory required for data: 320122880
+I0913 19:40:56.278455 26750 layer_factory.hpp:77] Creating layer inception_3b/relu_pool_proj
+I0913 19:40:56.278465 26750 net.cpp:91] Creating Layer inception_3b/relu_pool_proj
+I0913 19:40:56.278471 26750 net.cpp:425] inception_3b/relu_pool_proj <- inception_3b/pool_proj
+I0913 19:40:56.278478 26750 net.cpp:386] inception_3b/relu_pool_proj -> inception_3b/pool_proj (in-place)
+I0913 19:40:56.278863 26750 net.cpp:141] Setting up inception_3b/relu_pool_proj
+I0913 19:40:56.278875 26750 net.cpp:148] Top shape: 10 64 28 28 (501760)
+I0913 19:40:56.278880 26750 net.cpp:156] Memory required for data: 322129920
+I0913 19:40:56.278885 26750 layer_factory.hpp:77] Creating layer inception_3b/output
+I0913 19:40:56.278897 26750 net.cpp:91] Creating Layer inception_3b/output
+I0913 19:40:56.278901 26750 net.cpp:425] inception_3b/output <- inception_3b/1x1
+I0913 19:40:56.278908 26750 net.cpp:425] inception_3b/output <- inception_3b/3x3
+I0913 19:40:56.278913 26750 net.cpp:425] inception_3b/output <- inception_3b/5x5
+I0913 19:40:56.278918 26750 net.cpp:425] inception_3b/output <- inception_3b/pool_proj
+I0913 19:40:56.278924 26750 net.cpp:399] inception_3b/output -> inception_3b/output
+I0913 19:40:56.278965 26750 net.cpp:141] Setting up inception_3b/output
+I0913 19:40:56.278975 26750 net.cpp:148] Top shape: 10 480 28 28 (3763200)
+I0913 19:40:56.278978 26750 net.cpp:156] Memory required for data: 337182720
+I0913 19:40:56.278983 26750 layer_factory.hpp:77] Creating layer pool3/3x3_s2
+I0913 19:40:56.278991 26750 net.cpp:91] Creating Layer pool3/3x3_s2
+I0913 19:40:56.278996 26750 net.cpp:425] pool3/3x3_s2 <- inception_3b/output
+I0913 19:40:56.279006 26750 net.cpp:399] pool3/3x3_s2 -> pool3/3x3_s2
+I0913 19:40:56.279062 26750 net.cpp:141] Setting up pool3/3x3_s2
+I0913 19:40:56.279072 26750 net.cpp:148] Top shape: 10 480 14 14 (940800)
+I0913 19:40:56.279075 26750 net.cpp:156] Memory required for data: 340945920
+I0913 19:40:56.279080 26750 layer_factory.hpp:77] Creating layer pool3/3x3_s2_pool3/3x3_s2_0_split
+I0913 19:40:56.279089 26750 net.cpp:91] Creating Layer pool3/3x3_s2_pool3/3x3_s2_0_split
+I0913 19:40:56.279093 26750 net.cpp:425] pool3/3x3_s2_pool3/3x3_s2_0_split <- pool3/3x3_s2
+I0913 19:40:56.279103 26750 net.cpp:399] pool3/3x3_s2_pool3/3x3_s2_0_split -> pool3/3x3_s2_pool3/3x3_s2_0_split_0
+I0913 19:40:56.279111 26750 net.cpp:399] pool3/3x3_s2_pool3/3x3_s2_0_split -> pool3/3x3_s2_pool3/3x3_s2_0_split_1
+I0913 19:40:56.279119 26750 net.cpp:399] pool3/3x3_s2_pool3/3x3_s2_0_split -> pool3/3x3_s2_pool3/3x3_s2_0_split_2
+I0913 19:40:56.279125 26750 net.cpp:399] pool3/3x3_s2_pool3/3x3_s2_0_split -> pool3/3x3_s2_pool3/3x3_s2_0_split_3
+I0913 19:40:56.279202 26750 net.cpp:141] Setting up pool3/3x3_s2_pool3/3x3_s2_0_split
+I0913 19:40:56.279211 26750 net.cpp:148] Top shape: 10 480 14 14 (940800)
+I0913 19:40:56.279217 26750 net.cpp:148] Top shape: 10 480 14 14 (940800)
+I0913 19:40:56.279222 26750 net.cpp:148] Top shape: 10 480 14 14 (940800)
+I0913 19:40:56.279227 26750 net.cpp:148] Top shape: 10 480 14 14 (940800)
+I0913 19:40:56.279229 26750 net.cpp:156] Memory required for data: 355998720
+I0913 19:40:56.279234 26750 layer_factory.hpp:77] Creating layer inception_4a/1x1
+I0913 19:40:56.279252 26750 net.cpp:91] Creating Layer inception_4a/1x1
+I0913 19:40:56.279258 26750 net.cpp:425] inception_4a/1x1 <- pool3/3x3_s2_pool3/3x3_s2_0_split_0
+I0913 19:40:56.279265 26750 net.cpp:399] inception_4a/1x1 -> inception_4a/1x1
+I0913 19:40:56.281373 26750 net.cpp:141] Setting up inception_4a/1x1
+I0913 19:40:56.281391 26750 net.cpp:148] Top shape: 10 192 14 14 (376320)
+I0913 19:40:56.281397 26750 net.cpp:156] Memory required for data: 357504000
+I0913 19:40:56.281405 26750 layer_factory.hpp:77] Creating layer inception_4a/relu_1x1
+I0913 19:40:56.281414 26750 net.cpp:91] Creating Layer inception_4a/relu_1x1
+I0913 19:40:56.281420 26750 net.cpp:425] inception_4a/relu_1x1 <- inception_4a/1x1
+I0913 19:40:56.281426 26750 net.cpp:386] inception_4a/relu_1x1 -> inception_4a/1x1 (in-place)
+I0913 19:40:56.281815 26750 net.cpp:141] Setting up inception_4a/relu_1x1
+I0913 19:40:56.281826 26750 net.cpp:148] Top shape: 10 192 14 14 (376320)
+I0913 19:40:56.281831 26750 net.cpp:156] Memory required for data: 359009280
+I0913 19:40:56.281836 26750 layer_factory.hpp:77] Creating layer inception_4a/3x3_reduce
+I0913 19:40:56.281860 26750 net.cpp:91] Creating Layer inception_4a/3x3_reduce
+I0913 19:40:56.281867 26750 net.cpp:425] inception_4a/3x3_reduce <- pool3/3x3_s2_pool3/3x3_s2_0_split_1
+I0913 19:40:56.281875 26750 net.cpp:399] inception_4a/3x3_reduce -> inception_4a/3x3_reduce
+I0913 19:40:56.283608 26750 net.cpp:141] Setting up inception_4a/3x3_reduce
+I0913 19:40:56.283629 26750 net.cpp:148] Top shape: 10 96 14 14 (188160)
+I0913 19:40:56.283634 26750 net.cpp:156] Memory required for data: 359761920
+I0913 19:40:56.283663 26750 layer_factory.hpp:77] Creating layer inception_4a/relu_3x3_reduce
+I0913 19:40:56.283675 26750 net.cpp:91] Creating Layer inception_4a/relu_3x3_reduce
+I0913 19:40:56.283682 26750 net.cpp:425] inception_4a/relu_3x3_reduce <- inception_4a/3x3_reduce
+I0913 19:40:56.283705 26750 net.cpp:386] inception_4a/relu_3x3_reduce -> inception_4a/3x3_reduce (in-place)
+I0913 19:40:56.283931 26750 net.cpp:141] Setting up inception_4a/relu_3x3_reduce
+I0913 19:40:56.283941 26750 net.cpp:148] Top shape: 10 96 14 14 (188160)
+I0913 19:40:56.283946 26750 net.cpp:156] Memory required for data: 360514560
+I0913 19:40:56.283951 26750 layer_factory.hpp:77] Creating layer inception_4a/3x3
+I0913 19:40:56.283970 26750 net.cpp:91] Creating Layer inception_4a/3x3
+I0913 19:40:56.283977 26750 net.cpp:425] inception_4a/3x3 <- inception_4a/3x3_reduce
+I0913 19:40:56.283984 26750 net.cpp:399] inception_4a/3x3 -> inception_4a/3x3
+I0913 19:40:56.287504 26750 net.cpp:141] Setting up inception_4a/3x3
+I0913 19:40:56.287521 26750 net.cpp:148] Top shape: 10 208 14 14 (407680)
+I0913 19:40:56.287526 26750 net.cpp:156] Memory required for data: 362145280
+I0913 19:40:56.287535 26750 layer_factory.hpp:77] Creating layer inception_4a/relu_3x3
+I0913 19:40:56.287549 26750 net.cpp:91] Creating Layer inception_4a/relu_3x3
+I0913 19:40:56.287554 26750 net.cpp:425] inception_4a/relu_3x3 <- inception_4a/3x3
+I0913 19:40:56.287561 26750 net.cpp:386] inception_4a/relu_3x3 -> inception_4a/3x3 (in-place)
+I0913 19:40:56.287951 26750 net.cpp:141] Setting up inception_4a/relu_3x3
+I0913 19:40:56.287963 26750 net.cpp:148] Top shape: 10 208 14 14 (407680)
+I0913 19:40:56.287968 26750 net.cpp:156] Memory required for data: 363776000
+I0913 19:40:56.287973 26750 layer_factory.hpp:77] Creating layer inception_4a/5x5_reduce
+I0913 19:40:56.288000 26750 net.cpp:91] Creating Layer inception_4a/5x5_reduce
+I0913 19:40:56.288007 26750 net.cpp:425] inception_4a/5x5_reduce <- pool3/3x3_s2_pool3/3x3_s2_0_split_2
+I0913 19:40:56.288015 26750 net.cpp:399] inception_4a/5x5_reduce -> inception_4a/5x5_reduce
+I0913 19:40:56.289322 26750 net.cpp:141] Setting up inception_4a/5x5_reduce
+I0913 19:40:56.289340 26750 net.cpp:148] Top shape: 10 16 14 14 (31360)
+I0913 19:40:56.289345 26750 net.cpp:156] Memory required for data: 363901440
+I0913 19:40:56.289355 26750 layer_factory.hpp:77] Creating layer inception_4a/relu_5x5_reduce
+I0913 19:40:56.289366 26750 net.cpp:91] Creating Layer inception_4a/relu_5x5_reduce
+I0913 19:40:56.289371 26750 net.cpp:425] inception_4a/relu_5x5_reduce <- inception_4a/5x5_reduce
+I0913 19:40:56.289381 26750 net.cpp:386] inception_4a/relu_5x5_reduce -> inception_4a/5x5_reduce (in-place)
+I0913 19:40:56.289772 26750 net.cpp:141] Setting up inception_4a/relu_5x5_reduce
+I0913 19:40:56.289783 26750 net.cpp:148] Top shape: 10 16 14 14 (31360)
+I0913 19:40:56.289788 26750 net.cpp:156] Memory required for data: 364026880
+I0913 19:40:56.289793 26750 layer_factory.hpp:77] Creating layer inception_4a/5x5
+I0913 19:40:56.289809 26750 net.cpp:91] Creating Layer inception_4a/5x5
+I0913 19:40:56.289815 26750 net.cpp:425] inception_4a/5x5 <- inception_4a/5x5_reduce
+I0913 19:40:56.289827 26750 net.cpp:399] inception_4a/5x5 -> inception_4a/5x5
+I0913 19:40:56.291347 26750 net.cpp:141] Setting up inception_4a/5x5
+I0913 19:40:56.291360 26750 net.cpp:148] Top shape: 10 48 14 14 (94080)
+I0913 19:40:56.291365 26750 net.cpp:156] Memory required for data: 364403200
+I0913 19:40:56.291374 26750 layer_factory.hpp:77] Creating layer inception_4a/relu_5x5
+I0913 19:40:56.291383 26750 net.cpp:91] Creating Layer inception_4a/relu_5x5
+I0913 19:40:56.291388 26750 net.cpp:425] inception_4a/relu_5x5 <- inception_4a/5x5
+I0913 19:40:56.291396 26750 net.cpp:386] inception_4a/relu_5x5 -> inception_4a/5x5 (in-place)
+I0913 19:40:56.291623 26750 net.cpp:141] Setting up inception_4a/relu_5x5
+I0913 19:40:56.291633 26750 net.cpp:148] Top shape: 10 48 14 14 (94080)
+I0913 19:40:56.291638 26750 net.cpp:156] Memory required for data: 364779520
+I0913 19:40:56.291643 26750 layer_factory.hpp:77] Creating layer inception_4a/pool
+I0913 19:40:56.291656 26750 net.cpp:91] Creating Layer inception_4a/pool
+I0913 19:40:56.291662 26750 net.cpp:425] inception_4a/pool <- pool3/3x3_s2_pool3/3x3_s2_0_split_3
+I0913 19:40:56.291674 26750 net.cpp:399] inception_4a/pool -> inception_4a/pool
+I0913 19:40:56.291736 26750 net.cpp:141] Setting up inception_4a/pool
+I0913 19:40:56.291745 26750 net.cpp:148] Top shape: 10 480 14 14 (940800)
+I0913 19:40:56.291749 26750 net.cpp:156] Memory required for data: 368542720
+I0913 19:40:56.291754 26750 layer_factory.hpp:77] Creating layer inception_4a/pool_proj
+I0913 19:40:56.291769 26750 net.cpp:91] Creating Layer inception_4a/pool_proj
+I0913 19:40:56.291774 26750 net.cpp:425] inception_4a/pool_proj <- inception_4a/pool
+I0913 19:40:56.291785 26750 net.cpp:399] inception_4a/pool_proj -> inception_4a/pool_proj
+I0913 19:40:56.293375 26750 net.cpp:141] Setting up inception_4a/pool_proj
+I0913 19:40:56.293395 26750 net.cpp:148] Top shape: 10 64 14 14 (125440)
+I0913 19:40:56.293400 26750 net.cpp:156] Memory required for data: 369044480
+I0913 19:40:56.293408 26750 layer_factory.hpp:77] Creating layer inception_4a/relu_pool_proj
+I0913 19:40:56.293416 26750 net.cpp:91] Creating Layer inception_4a/relu_pool_proj
+I0913 19:40:56.293422 26750 net.cpp:425] inception_4a/relu_pool_proj <- inception_4a/pool_proj
+I0913 19:40:56.293432 26750 net.cpp:386] inception_4a/relu_pool_proj -> inception_4a/pool_proj (in-place)
+I0913 19:40:56.293822 26750 net.cpp:141] Setting up inception_4a/relu_pool_proj
+I0913 19:40:56.293836 26750 net.cpp:148] Top shape: 10 64 14 14 (125440)
+I0913 19:40:56.293840 26750 net.cpp:156] Memory required for data: 369546240
+I0913 19:40:56.293845 26750 layer_factory.hpp:77] Creating layer inception_4a/output
+I0913 19:40:56.293855 26750 net.cpp:91] Creating Layer inception_4a/output
+I0913 19:40:56.293860 26750 net.cpp:425] inception_4a/output <- inception_4a/1x1
+I0913 19:40:56.293866 26750 net.cpp:425] inception_4a/output <- inception_4a/3x3
+I0913 19:40:56.293871 26750 net.cpp:425] inception_4a/output <- inception_4a/5x5
+I0913 19:40:56.293877 26750 net.cpp:425] inception_4a/output <- inception_4a/pool_proj
+I0913 19:40:56.293889 26750 net.cpp:399] inception_4a/output -> inception_4a/output
+I0913 19:40:56.293932 26750 net.cpp:141] Setting up inception_4a/output
+I0913 19:40:56.293941 26750 net.cpp:148] Top shape: 10 512 14 14 (1003520)
+I0913 19:40:56.293944 26750 net.cpp:156] Memory required for data: 373560320
+I0913 19:40:56.293949 26750 layer_factory.hpp:77] Creating layer inception_4a/output_inception_4a/output_0_split
+I0913 19:40:56.293958 26750 net.cpp:91] Creating Layer inception_4a/output_inception_4a/output_0_split
+I0913 19:40:56.293963 26750 net.cpp:425] inception_4a/output_inception_4a/output_0_split <- inception_4a/output
+I0913 19:40:56.293969 26750 net.cpp:399] inception_4a/output_inception_4a/output_0_split -> inception_4a/output_inception_4a/output_0_split_0
+I0913 19:40:56.293980 26750 net.cpp:399] inception_4a/output_inception_4a/output_0_split -> inception_4a/output_inception_4a/output_0_split_1
+I0913 19:40:56.293989 26750 net.cpp:399] inception_4a/output_inception_4a/output_0_split -> inception_4a/output_inception_4a/output_0_split_2
+I0913 19:40:56.293998 26750 net.cpp:399] inception_4a/output_inception_4a/output_0_split -> inception_4a/output_inception_4a/output_0_split_3
+I0913 19:40:56.294082 26750 net.cpp:141] Setting up inception_4a/output_inception_4a/output_0_split
+I0913 19:40:56.294091 26750 net.cpp:148] Top shape: 10 512 14 14 (1003520)
+I0913 19:40:56.294096 26750 net.cpp:148] Top shape: 10 512 14 14 (1003520)
+I0913 19:40:56.294101 26750 net.cpp:148] Top shape: 10 512 14 14 (1003520)
+I0913 19:40:56.294106 26750 net.cpp:148] Top shape: 10 512 14 14 (1003520)
+I0913 19:40:56.294111 26750 net.cpp:156] Memory required for data: 389616640
+I0913 19:40:56.294114 26750 layer_factory.hpp:77] Creating layer inception_4b/1x1
+I0913 19:40:56.294131 26750 net.cpp:91] Creating Layer inception_4b/1x1
+I0913 19:40:56.294137 26750 net.cpp:425] inception_4b/1x1 <- inception_4a/output_inception_4a/output_0_split_0
+I0913 19:40:56.294144 26750 net.cpp:399] inception_4b/1x1 -> inception_4b/1x1
+I0913 19:40:56.295990 26750 net.cpp:141] Setting up inception_4b/1x1
+I0913 19:40:56.296007 26750 net.cpp:148] Top shape: 10 160 14 14 (313600)
+I0913 19:40:56.296011 26750 net.cpp:156] Memory required for data: 390871040
+I0913 19:40:56.296020 26750 layer_factory.hpp:77] Creating layer inception_4b/relu_1x1
+I0913 19:40:56.296032 26750 net.cpp:91] Creating Layer inception_4b/relu_1x1
+I0913 19:40:56.296038 26750 net.cpp:425] inception_4b/relu_1x1 <- inception_4b/1x1
+I0913 19:40:56.296047 26750 net.cpp:386] inception_4b/relu_1x1 -> inception_4b/1x1 (in-place)
+I0913 19:40:56.296444 26750 net.cpp:141] Setting up inception_4b/relu_1x1
+I0913 19:40:56.296460 26750 net.cpp:148] Top shape: 10 160 14 14 (313600)
+I0913 19:40:56.296465 26750 net.cpp:156] Memory required for data: 392125440
+I0913 19:40:56.296470 26750 layer_factory.hpp:77] Creating layer inception_4b/3x3_reduce
+I0913 19:40:56.296485 26750 net.cpp:91] Creating Layer inception_4b/3x3_reduce
+I0913 19:40:56.296491 26750 net.cpp:425] inception_4b/3x3_reduce <- inception_4a/output_inception_4a/output_0_split_1
+I0913 19:40:56.296499 26750 net.cpp:399] inception_4b/3x3_reduce -> inception_4b/3x3_reduce
+I0913 19:40:56.298295 26750 net.cpp:141] Setting up inception_4b/3x3_reduce
+I0913 19:40:56.298322 26750 net.cpp:148] Top shape: 10 112 14 14 (219520)
+I0913 19:40:56.298328 26750 net.cpp:156] Memory required for data: 393003520
+I0913 19:40:56.298336 26750 layer_factory.hpp:77] Creating layer inception_4b/relu_3x3_reduce
+I0913 19:40:56.298348 26750 net.cpp:91] Creating Layer inception_4b/relu_3x3_reduce
+I0913 19:40:56.298354 26750 net.cpp:425] inception_4b/relu_3x3_reduce <- inception_4b/3x3_reduce
+I0913 19:40:56.298360 26750 net.cpp:386] inception_4b/relu_3x3_reduce -> inception_4b/3x3_reduce (in-place)
+I0913 19:40:56.298591 26750 net.cpp:141] Setting up inception_4b/relu_3x3_reduce
+I0913 19:40:56.298602 26750 net.cpp:148] Top shape: 10 112 14 14 (219520)
+I0913 19:40:56.298606 26750 net.cpp:156] Memory required for data: 393881600
+I0913 19:40:56.298611 26750 layer_factory.hpp:77] Creating layer inception_4b/3x3
+I0913 19:40:56.298629 26750 net.cpp:91] Creating Layer inception_4b/3x3
+I0913 19:40:56.298635 26750 net.cpp:425] inception_4b/3x3 <- inception_4b/3x3_reduce
+I0913 19:40:56.298642 26750 net.cpp:399] inception_4b/3x3 -> inception_4b/3x3
+I0913 19:40:56.302656 26750 net.cpp:141] Setting up inception_4b/3x3
+I0913 19:40:56.302685 26750 net.cpp:148] Top shape: 10 224 14 14 (439040)
+I0913 19:40:56.302691 26750 net.cpp:156] Memory required for data: 395637760
+I0913 19:40:56.302700 26750 layer_factory.hpp:77] Creating layer inception_4b/relu_3x3
+I0913 19:40:56.302708 26750 net.cpp:91] Creating Layer inception_4b/relu_3x3
+I0913 19:40:56.302714 26750 net.cpp:425] inception_4b/relu_3x3 <- inception_4b/3x3
+I0913 19:40:56.302723 26750 net.cpp:386] inception_4b/relu_3x3 -> inception_4b/3x3 (in-place)
+I0913 19:40:56.303133 26750 net.cpp:141] Setting up inception_4b/relu_3x3
+I0913 19:40:56.303145 26750 net.cpp:148] Top shape: 10 224 14 14 (439040)
+I0913 19:40:56.303149 26750 net.cpp:156] Memory required for data: 397393920
+I0913 19:40:56.303154 26750 layer_factory.hpp:77] Creating layer inception_4b/5x5_reduce
+I0913 19:40:56.303181 26750 net.cpp:91] Creating Layer inception_4b/5x5_reduce
+I0913 19:40:56.303187 26750 net.cpp:425] inception_4b/5x5_reduce <- inception_4a/output_inception_4a/output_0_split_2
+I0913 19:40:56.303198 26750 net.cpp:399] inception_4b/5x5_reduce -> inception_4b/5x5_reduce
+I0913 19:40:56.304580 26750 net.cpp:141] Setting up inception_4b/5x5_reduce
+I0913 19:40:56.304610 26750 net.cpp:148] Top shape: 10 24 14 14 (47040)
+I0913 19:40:56.304615 26750 net.cpp:156] Memory required for data: 397582080
+I0913 19:40:56.304625 26750 layer_factory.hpp:77] Creating layer inception_4b/relu_5x5_reduce
+I0913 19:40:56.304633 26750 net.cpp:91] Creating Layer inception_4b/relu_5x5_reduce
+I0913 19:40:56.304639 26750 net.cpp:425] inception_4b/relu_5x5_reduce <- inception_4b/5x5_reduce
+I0913 19:40:56.304646 26750 net.cpp:386] inception_4b/relu_5x5_reduce -> inception_4b/5x5_reduce (in-place)
+I0913 19:40:56.305044 26750 net.cpp:141] Setting up inception_4b/relu_5x5_reduce
+I0913 19:40:56.305057 26750 net.cpp:148] Top shape: 10 24 14 14 (47040)
+I0913 19:40:56.305061 26750 net.cpp:156] Memory required for data: 397770240
+I0913 19:40:56.305066 26750 layer_factory.hpp:77] Creating layer inception_4b/5x5
+I0913 19:40:56.305083 26750 net.cpp:91] Creating Layer inception_4b/5x5
+I0913 19:40:56.305088 26750 net.cpp:425] inception_4b/5x5 <- inception_4b/5x5_reduce
+I0913 19:40:56.305099 26750 net.cpp:399] inception_4b/5x5 -> inception_4b/5x5
+I0913 19:40:56.307399 26750 net.cpp:141] Setting up inception_4b/5x5
+I0913 19:40:56.307428 26750 net.cpp:148] Top shape: 10 64 14 14 (125440)
+I0913 19:40:56.307433 26750 net.cpp:156] Memory required for data: 398272000
+I0913 19:40:56.307449 26750 layer_factory.hpp:77] Creating layer inception_4b/relu_5x5
+I0913 19:40:56.307461 26750 net.cpp:91] Creating Layer inception_4b/relu_5x5
+I0913 19:40:56.307466 26750 net.cpp:425] inception_4b/relu_5x5 <- inception_4b/5x5
+I0913 19:40:56.307473 26750 net.cpp:386] inception_4b/relu_5x5 -> inception_4b/5x5 (in-place)
+I0913 19:40:56.307703 26750 net.cpp:141] Setting up inception_4b/relu_5x5
+I0913 19:40:56.307713 26750 net.cpp:148] Top shape: 10 64 14 14 (125440)
+I0913 19:40:56.307718 26750 net.cpp:156] Memory required for data: 398773760
+I0913 19:40:56.307723 26750 layer_factory.hpp:77] Creating layer inception_4b/pool
+I0913 19:40:56.307737 26750 net.cpp:91] Creating Layer inception_4b/pool
+I0913 19:40:56.307742 26750 net.cpp:425] inception_4b/pool <- inception_4a/output_inception_4a/output_0_split_3
+I0913 19:40:56.307751 26750 net.cpp:399] inception_4b/pool -> inception_4b/pool
+I0913 19:40:56.307813 26750 net.cpp:141] Setting up inception_4b/pool
+I0913 19:40:56.307822 26750 net.cpp:148] Top shape: 10 512 14 14 (1003520)
+I0913 19:40:56.307826 26750 net.cpp:156] Memory required for data: 402787840
+I0913 19:40:56.307831 26750 layer_factory.hpp:77] Creating layer inception_4b/pool_proj
+I0913 19:40:56.307845 26750 net.cpp:91] Creating Layer inception_4b/pool_proj
+I0913 19:40:56.307850 26750 net.cpp:425] inception_4b/pool_proj <- inception_4b/pool
+I0913 19:40:56.307862 26750 net.cpp:399] inception_4b/pool_proj -> inception_4b/pool_proj
+I0913 19:40:56.309476 26750 net.cpp:141] Setting up inception_4b/pool_proj
+I0913 19:40:56.309492 26750 net.cpp:148] Top shape: 10 64 14 14 (125440)
+I0913 19:40:56.309510 26750 net.cpp:156] Memory required for data: 403289600
+I0913 19:40:56.309520 26750 layer_factory.hpp:77] Creating layer inception_4b/relu_pool_proj
+I0913 19:40:56.309528 26750 net.cpp:91] Creating Layer inception_4b/relu_pool_proj
+I0913 19:40:56.309533 26750 net.cpp:425] inception_4b/relu_pool_proj <- inception_4b/pool_proj
+I0913 19:40:56.309543 26750 net.cpp:386] inception_4b/relu_pool_proj -> inception_4b/pool_proj (in-place)
+I0913 19:40:56.309940 26750 net.cpp:141] Setting up inception_4b/relu_pool_proj
+I0913 19:40:56.309952 26750 net.cpp:148] Top shape: 10 64 14 14 (125440)
+I0913 19:40:56.309957 26750 net.cpp:156] Memory required for data: 403791360
+I0913 19:40:56.309962 26750 layer_factory.hpp:77] Creating layer inception_4b/output
+I0913 19:40:56.309970 26750 net.cpp:91] Creating Layer inception_4b/output
+I0913 19:40:56.309975 26750 net.cpp:425] inception_4b/output <- inception_4b/1x1
+I0913 19:40:56.309981 26750 net.cpp:425] inception_4b/output <- inception_4b/3x3
+I0913 19:40:56.309986 26750 net.cpp:425] inception_4b/output <- inception_4b/5x5
+I0913 19:40:56.309991 26750 net.cpp:425] inception_4b/output <- inception_4b/pool_proj
+I0913 19:40:56.310000 26750 net.cpp:399] inception_4b/output -> inception_4b/output
+I0913 19:40:56.310044 26750 net.cpp:141] Setting up inception_4b/output
+I0913 19:40:56.310052 26750 net.cpp:148] Top shape: 10 512 14 14 (1003520)
+I0913 19:40:56.310056 26750 net.cpp:156] Memory required for data: 407805440
+I0913 19:40:56.310061 26750 layer_factory.hpp:77] Creating layer inception_4b/output_inception_4b/output_0_split
+I0913 19:40:56.310070 26750 net.cpp:91] Creating Layer inception_4b/output_inception_4b/output_0_split
+I0913 19:40:56.310075 26750 net.cpp:425] inception_4b/output_inception_4b/output_0_split <- inception_4b/output
+I0913 19:40:56.310081 26750 net.cpp:399] inception_4b/output_inception_4b/output_0_split -> inception_4b/output_inception_4b/output_0_split_0
+I0913 19:40:56.310092 26750 net.cpp:399] inception_4b/output_inception_4b/output_0_split -> inception_4b/output_inception_4b/output_0_split_1
+I0913 19:40:56.310101 26750 net.cpp:399] inception_4b/output_inception_4b/output_0_split -> inception_4b/output_inception_4b/output_0_split_2
+I0913 19:40:56.310108 26750 net.cpp:399] inception_4b/output_inception_4b/output_0_split -> inception_4b/output_inception_4b/output_0_split_3
+I0913 19:40:56.310192 26750 net.cpp:141] Setting up inception_4b/output_inception_4b/output_0_split
+I0913 19:40:56.310201 26750 net.cpp:148] Top shape: 10 512 14 14 (1003520)
+I0913 19:40:56.310206 26750 net.cpp:148] Top shape: 10 512 14 14 (1003520)
+I0913 19:40:56.310212 26750 net.cpp:148] Top shape: 10 512 14 14 (1003520)
+I0913 19:40:56.310216 26750 net.cpp:148] Top shape: 10 512 14 14 (1003520)
+I0913 19:40:56.310220 26750 net.cpp:156] Memory required for data: 423861760
+I0913 19:40:56.310225 26750 layer_factory.hpp:77] Creating layer inception_4c/1x1
+I0913 19:40:56.310242 26750 net.cpp:91] Creating Layer inception_4c/1x1
+I0913 19:40:56.310247 26750 net.cpp:425] inception_4c/1x1 <- inception_4b/output_inception_4b/output_0_split_0
+I0913 19:40:56.310256 26750 net.cpp:399] inception_4c/1x1 -> inception_4c/1x1
+I0913 19:40:56.311936 26750 net.cpp:141] Setting up inception_4c/1x1
+I0913 19:40:56.311951 26750 net.cpp:148] Top shape: 10 128 14 14 (250880)
+I0913 19:40:56.311956 26750 net.cpp:156] Memory required for data: 424865280
+I0913 19:40:56.311965 26750 layer_factory.hpp:77] Creating layer inception_4c/relu_1x1
+I0913 19:40:56.311974 26750 net.cpp:91] Creating Layer inception_4c/relu_1x1
+I0913 19:40:56.311978 26750 net.cpp:425] inception_4c/relu_1x1 <- inception_4c/1x1
+I0913 19:40:56.311985 26750 net.cpp:386] inception_4c/relu_1x1 -> inception_4c/1x1 (in-place)
+I0913 19:40:56.312381 26750 net.cpp:141] Setting up inception_4c/relu_1x1
+I0913 19:40:56.312393 26750 net.cpp:148] Top shape: 10 128 14 14 (250880)
+I0913 19:40:56.312398 26750 net.cpp:156] Memory required for data: 425868800
+I0913 19:40:56.312413 26750 layer_factory.hpp:77] Creating layer inception_4c/3x3_reduce
+I0913 19:40:56.312429 26750 net.cpp:91] Creating Layer inception_4c/3x3_reduce
+I0913 19:40:56.312435 26750 net.cpp:425] inception_4c/3x3_reduce <- inception_4b/output_inception_4b/output_0_split_1
+I0913 19:40:56.312446 26750 net.cpp:399] inception_4c/3x3_reduce -> inception_4c/3x3_reduce
+I0913 19:40:56.314307 26750 net.cpp:141] Setting up inception_4c/3x3_reduce
+I0913 19:40:56.314335 26750 net.cpp:148] Top shape: 10 128 14 14 (250880)
+I0913 19:40:56.314340 26750 net.cpp:156] Memory required for data: 426872320
+I0913 19:40:56.314348 26750 layer_factory.hpp:77] Creating layer inception_4c/relu_3x3_reduce
+I0913 19:40:56.314360 26750 net.cpp:91] Creating Layer inception_4c/relu_3x3_reduce
+I0913 19:40:56.314366 26750 net.cpp:425] inception_4c/relu_3x3_reduce <- inception_4c/3x3_reduce
+I0913 19:40:56.314373 26750 net.cpp:386] inception_4c/relu_3x3_reduce -> inception_4c/3x3_reduce (in-place)
+I0913 19:40:56.314604 26750 net.cpp:141] Setting up inception_4c/relu_3x3_reduce
+I0913 19:40:56.314615 26750 net.cpp:148] Top shape: 10 128 14 14 (250880)
+I0913 19:40:56.314620 26750 net.cpp:156] Memory required for data: 427875840
+I0913 19:40:56.314625 26750 layer_factory.hpp:77] Creating layer inception_4c/3x3
+I0913 19:40:56.314640 26750 net.cpp:91] Creating Layer inception_4c/3x3
+I0913 19:40:56.314646 26750 net.cpp:425] inception_4c/3x3 <- inception_4c/3x3_reduce
+I0913 19:40:56.314656 26750 net.cpp:399] inception_4c/3x3 -> inception_4c/3x3
+I0913 19:40:56.318884 26750 net.cpp:141] Setting up inception_4c/3x3
+I0913 19:40:56.318900 26750 net.cpp:148] Top shape: 10 256 14 14 (501760)
+I0913 19:40:56.318918 26750 net.cpp:156] Memory required for data: 429882880
+I0913 19:40:56.318928 26750 layer_factory.hpp:77] Creating layer inception_4c/relu_3x3
+I0913 19:40:56.318938 26750 net.cpp:91] Creating Layer inception_4c/relu_3x3
+I0913 19:40:56.318944 26750 net.cpp:425] inception_4c/relu_3x3 <- inception_4c/3x3
+I0913 19:40:56.318951 26750 net.cpp:386] inception_4c/relu_3x3 -> inception_4c/3x3 (in-place)
+I0913 19:40:56.319351 26750 net.cpp:141] Setting up inception_4c/relu_3x3
+I0913 19:40:56.319363 26750 net.cpp:148] Top shape: 10 256 14 14 (501760)
+I0913 19:40:56.319368 26750 net.cpp:156] Memory required for data: 431889920
+I0913 19:40:56.319373 26750 layer_factory.hpp:77] Creating layer inception_4c/5x5_reduce
+I0913 19:40:56.319388 26750 net.cpp:91] Creating Layer inception_4c/5x5_reduce
+I0913 19:40:56.319393 26750 net.cpp:425] inception_4c/5x5_reduce <- inception_4b/output_inception_4b/output_0_split_2
+I0913 19:40:56.319406 26750 net.cpp:399] inception_4c/5x5_reduce -> inception_4c/5x5_reduce
+I0913 19:40:56.320806 26750 net.cpp:141] Setting up inception_4c/5x5_reduce
+I0913 19:40:56.320837 26750 net.cpp:148] Top shape: 10 24 14 14 (47040)
+I0913 19:40:56.320842 26750 net.cpp:156] Memory required for data: 432078080
+I0913 19:40:56.320850 26750 layer_factory.hpp:77] Creating layer inception_4c/relu_5x5_reduce
+I0913 19:40:56.320859 26750 net.cpp:91] Creating Layer inception_4c/relu_5x5_reduce
+I0913 19:40:56.320864 26750 net.cpp:425] inception_4c/relu_5x5_reduce <- inception_4c/5x5_reduce
+I0913 19:40:56.320870 26750 net.cpp:386] inception_4c/relu_5x5_reduce -> inception_4c/5x5_reduce (in-place)
+I0913 19:40:56.321265 26750 net.cpp:141] Setting up inception_4c/relu_5x5_reduce
+I0913 19:40:56.321277 26750 net.cpp:148] Top shape: 10 24 14 14 (47040)
+I0913 19:40:56.321281 26750 net.cpp:156] Memory required for data: 432266240
+I0913 19:40:56.321287 26750 layer_factory.hpp:77] Creating layer inception_4c/5x5
+I0913 19:40:56.321302 26750 net.cpp:91] Creating Layer inception_4c/5x5
+I0913 19:40:56.321310 26750 net.cpp:425] inception_4c/5x5 <- inception_4c/5x5_reduce
+I0913 19:40:56.321319 26750 net.cpp:399] inception_4c/5x5 -> inception_4c/5x5
+I0913 19:40:56.323282 26750 net.cpp:141] Setting up inception_4c/5x5
+I0913 19:40:56.323312 26750 net.cpp:148] Top shape: 10 64 14 14 (125440)
+I0913 19:40:56.323317 26750 net.cpp:156] Memory required for data: 432768000
+I0913 19:40:56.323325 26750 layer_factory.hpp:77] Creating layer inception_4c/relu_5x5
+I0913 19:40:56.323333 26750 net.cpp:91] Creating Layer inception_4c/relu_5x5
+I0913 19:40:56.323339 26750 net.cpp:425] inception_4c/relu_5x5 <- inception_4c/5x5
+I0913 19:40:56.323348 26750 net.cpp:386] inception_4c/relu_5x5 -> inception_4c/5x5 (in-place)
+I0913 19:40:56.323585 26750 net.cpp:141] Setting up inception_4c/relu_5x5
+I0913 19:40:56.323596 26750 net.cpp:148] Top shape: 10 64 14 14 (125440)
+I0913 19:40:56.323601 26750 net.cpp:156] Memory required for data: 433269760
+I0913 19:40:56.323606 26750 layer_factory.hpp:77] Creating layer inception_4c/pool
+I0913 19:40:56.323619 26750 net.cpp:91] Creating Layer inception_4c/pool
+I0913 19:40:56.323626 26750 net.cpp:425] inception_4c/pool <- inception_4b/output_inception_4b/output_0_split_3
+I0913 19:40:56.323632 26750 net.cpp:399] inception_4c/pool -> inception_4c/pool
+I0913 19:40:56.323699 26750 net.cpp:141] Setting up inception_4c/pool
+I0913 19:40:56.323709 26750 net.cpp:148] Top shape: 10 512 14 14 (1003520)
+I0913 19:40:56.323712 26750 net.cpp:156] Memory required for data: 437283840
+I0913 19:40:56.323717 26750 layer_factory.hpp:77] Creating layer inception_4c/pool_proj
+I0913 19:40:56.323731 26750 net.cpp:91] Creating Layer inception_4c/pool_proj
+I0913 19:40:56.323737 26750 net.cpp:425] inception_4c/pool_proj <- inception_4c/pool
+I0913 19:40:56.323747 26750 net.cpp:399] inception_4c/pool_proj -> inception_4c/pool_proj
+I0913 19:40:56.326062 26750 net.cpp:141] Setting up inception_4c/pool_proj
+I0913 19:40:56.326092 26750 net.cpp:148] Top shape: 10 64 14 14 (125440)
+I0913 19:40:56.326097 26750 net.cpp:156] Memory required for data: 437785600
+I0913 19:40:56.326124 26750 layer_factory.hpp:77] Creating layer inception_4c/relu_pool_proj
+I0913 19:40:56.326143 26750 net.cpp:91] Creating Layer inception_4c/relu_pool_proj
+I0913 19:40:56.326148 26750 net.cpp:425] inception_4c/relu_pool_proj <- inception_4c/pool_proj
+I0913 19:40:56.326154 26750 net.cpp:386] inception_4c/relu_pool_proj -> inception_4c/pool_proj (in-place)
+I0913 19:40:56.326560 26750 net.cpp:141] Setting up inception_4c/relu_pool_proj
+I0913 19:40:56.326572 26750 net.cpp:148] Top shape: 10 64 14 14 (125440)
+I0913 19:40:56.326577 26750 net.cpp:156] Memory required for data: 438287360
+I0913 19:40:56.326582 26750 layer_factory.hpp:77] Creating layer inception_4c/output
+I0913 19:40:56.326591 26750 net.cpp:91] Creating Layer inception_4c/output
+I0913 19:40:56.326596 26750 net.cpp:425] inception_4c/output <- inception_4c/1x1
+I0913 19:40:56.326602 26750 net.cpp:425] inception_4c/output <- inception_4c/3x3
+I0913 19:40:56.326607 26750 net.cpp:425] inception_4c/output <- inception_4c/5x5
+I0913 19:40:56.326612 26750 net.cpp:425] inception_4c/output <- inception_4c/pool_proj
+I0913 19:40:56.326622 26750 net.cpp:399] inception_4c/output -> inception_4c/output
+I0913 19:40:56.326665 26750 net.cpp:141] Setting up inception_4c/output
+I0913 19:40:56.326678 26750 net.cpp:148] Top shape: 10 512 14 14 (1003520)
+I0913 19:40:56.326681 26750 net.cpp:156] Memory required for data: 442301440
+I0913 19:40:56.326686 26750 layer_factory.hpp:77] Creating layer inception_4c/output_inception_4c/output_0_split
+I0913 19:40:56.326695 26750 net.cpp:91] Creating Layer inception_4c/output_inception_4c/output_0_split
+I0913 19:40:56.326700 26750 net.cpp:425] inception_4c/output_inception_4c/output_0_split <- inception_4c/output
+I0913 19:40:56.326706 26750 net.cpp:399] inception_4c/output_inception_4c/output_0_split -> inception_4c/output_inception_4c/output_0_split_0
+I0913 19:40:56.326714 26750 net.cpp:399] inception_4c/output_inception_4c/output_0_split -> inception_4c/output_inception_4c/output_0_split_1
+I0913 19:40:56.326722 26750 net.cpp:399] inception_4c/output_inception_4c/output_0_split -> inception_4c/output_inception_4c/output_0_split_2
+I0913 19:40:56.326733 26750 net.cpp:399] inception_4c/output_inception_4c/output_0_split -> inception_4c/output_inception_4c/output_0_split_3
+I0913 19:40:56.326823 26750 net.cpp:141] Setting up inception_4c/output_inception_4c/output_0_split
+I0913 19:40:56.326833 26750 net.cpp:148] Top shape: 10 512 14 14 (1003520)
+I0913 19:40:56.326838 26750 net.cpp:148] Top shape: 10 512 14 14 (1003520)
+I0913 19:40:56.326843 26750 net.cpp:148] Top shape: 10 512 14 14 (1003520)
+I0913 19:40:56.326848 26750 net.cpp:148] Top shape: 10 512 14 14 (1003520)
+I0913 19:40:56.326851 26750 net.cpp:156] Memory required for data: 458357760
+I0913 19:40:56.326855 26750 layer_factory.hpp:77] Creating layer inception_4d/1x1
+I0913 19:40:56.326879 26750 net.cpp:91] Creating Layer inception_4d/1x1
+I0913 19:40:56.326884 26750 net.cpp:425] inception_4d/1x1 <- inception_4c/output_inception_4c/output_0_split_0
+I0913 19:40:56.326894 26750 net.cpp:399] inception_4d/1x1 -> inception_4d/1x1
+I0913 19:40:56.328584 26750 net.cpp:141] Setting up inception_4d/1x1
+I0913 19:40:56.328613 26750 net.cpp:148] Top shape: 10 112 14 14 (219520)
+I0913 19:40:56.328619 26750 net.cpp:156] Memory required for data: 459235840
+I0913 19:40:56.328627 26750 layer_factory.hpp:77] Creating layer inception_4d/relu_1x1
+I0913 19:40:56.328639 26750 net.cpp:91] Creating Layer inception_4d/relu_1x1
+I0913 19:40:56.328645 26750 net.cpp:425] inception_4d/relu_1x1 <- inception_4d/1x1
+I0913 19:40:56.328652 26750 net.cpp:386] inception_4d/relu_1x1 -> inception_4d/1x1 (in-place)
+I0913 19:40:56.329063 26750 net.cpp:141] Setting up inception_4d/relu_1x1
+I0913 19:40:56.329076 26750 net.cpp:148] Top shape: 10 112 14 14 (219520)
+I0913 19:40:56.329079 26750 net.cpp:156] Memory required for data: 460113920
+I0913 19:40:56.329084 26750 layer_factory.hpp:77] Creating layer inception_4d/3x3_reduce
+I0913 19:40:56.329102 26750 net.cpp:91] Creating Layer inception_4d/3x3_reduce
+I0913 19:40:56.329107 26750 net.cpp:425] inception_4d/3x3_reduce <- inception_4c/output_inception_4c/output_0_split_1
+I0913 19:40:56.329116 26750 net.cpp:399] inception_4d/3x3_reduce -> inception_4d/3x3_reduce
+I0913 19:40:56.331090 26750 net.cpp:141] Setting up inception_4d/3x3_reduce
+I0913 19:40:56.331106 26750 net.cpp:148] Top shape: 10 144 14 14 (282240)
+I0913 19:40:56.331110 26750 net.cpp:156] Memory required for data: 461242880
+I0913 19:40:56.331120 26750 layer_factory.hpp:77] Creating layer inception_4d/relu_3x3_reduce
+I0913 19:40:56.331130 26750 net.cpp:91] Creating Layer inception_4d/relu_3x3_reduce
+I0913 19:40:56.331136 26750 net.cpp:425] inception_4d/relu_3x3_reduce <- inception_4d/3x3_reduce
+I0913 19:40:56.331143 26750 net.cpp:386] inception_4d/relu_3x3_reduce -> inception_4d/3x3_reduce (in-place)
+I0913 19:40:56.331387 26750 net.cpp:141] Setting up inception_4d/relu_3x3_reduce
+I0913 19:40:56.331398 26750 net.cpp:148] Top shape: 10 144 14 14 (282240)
+I0913 19:40:56.331403 26750 net.cpp:156] Memory required for data: 462371840
+I0913 19:40:56.331408 26750 layer_factory.hpp:77] Creating layer inception_4d/3x3
+I0913 19:40:56.331424 26750 net.cpp:91] Creating Layer inception_4d/3x3
+I0913 19:40:56.331430 26750 net.cpp:425] inception_4d/3x3 <- inception_4d/3x3_reduce
+I0913 19:40:56.331439 26750 net.cpp:399] inception_4d/3x3 -> inception_4d/3x3
+I0913 19:40:56.336354 26750 net.cpp:141] Setting up inception_4d/3x3
+I0913 19:40:56.336369 26750 net.cpp:148] Top shape: 10 288 14 14 (564480)
+I0913 19:40:56.336374 26750 net.cpp:156] Memory required for data: 464629760
+I0913 19:40:56.336382 26750 layer_factory.hpp:77] Creating layer inception_4d/relu_3x3
+I0913 19:40:56.336390 26750 net.cpp:91] Creating Layer inception_4d/relu_3x3
+I0913 19:40:56.336396 26750 net.cpp:425] inception_4d/relu_3x3 <- inception_4d/3x3
+I0913 19:40:56.336406 26750 net.cpp:386] inception_4d/relu_3x3 -> inception_4d/3x3 (in-place)
+I0913 19:40:56.336808 26750 net.cpp:141] Setting up inception_4d/relu_3x3
+I0913 19:40:56.336820 26750 net.cpp:148] Top shape: 10 288 14 14 (564480)
+I0913 19:40:56.336825 26750 net.cpp:156] Memory required for data: 466887680
+I0913 19:40:56.336830 26750 layer_factory.hpp:77] Creating layer inception_4d/5x5_reduce
+I0913 19:40:56.336846 26750 net.cpp:91] Creating Layer inception_4d/5x5_reduce
+I0913 19:40:56.336853 26750 net.cpp:425] inception_4d/5x5_reduce <- inception_4c/output_inception_4c/output_0_split_2
+I0913 19:40:56.336863 26750 net.cpp:399] inception_4d/5x5_reduce -> inception_4d/5x5_reduce
+I0913 19:40:56.338294 26750 net.cpp:141] Setting up inception_4d/5x5_reduce
+I0913 19:40:56.338310 26750 net.cpp:148] Top shape: 10 32 14 14 (62720)
+I0913 19:40:56.338315 26750 net.cpp:156] Memory required for data: 467138560
+I0913 19:40:56.338323 26750 layer_factory.hpp:77] Creating layer inception_4d/relu_5x5_reduce
+I0913 19:40:56.338335 26750 net.cpp:91] Creating Layer inception_4d/relu_5x5_reduce
+I0913 19:40:56.338340 26750 net.cpp:425] inception_4d/relu_5x5_reduce <- inception_4d/5x5_reduce
+I0913 19:40:56.338347 26750 net.cpp:386] inception_4d/relu_5x5_reduce -> inception_4d/5x5_reduce (in-place)
+I0913 19:40:56.338750 26750 net.cpp:141] Setting up inception_4d/relu_5x5_reduce
+I0913 19:40:56.338762 26750 net.cpp:148] Top shape: 10 32 14 14 (62720)
+I0913 19:40:56.338767 26750 net.cpp:156] Memory required for data: 467389440
+I0913 19:40:56.338771 26750 layer_factory.hpp:77] Creating layer inception_4d/5x5
+I0913 19:40:56.338788 26750 net.cpp:91] Creating Layer inception_4d/5x5
+I0913 19:40:56.338795 26750 net.cpp:425] inception_4d/5x5 <- inception_4d/5x5_reduce
+I0913 19:40:56.338804 26750 net.cpp:399] inception_4d/5x5 -> inception_4d/5x5
+I0913 19:40:56.340620 26750 net.cpp:141] Setting up inception_4d/5x5
+I0913 19:40:56.340639 26750 net.cpp:148] Top shape: 10 64 14 14 (125440)
+I0913 19:40:56.340644 26750 net.cpp:156] Memory required for data: 467891200
+I0913 19:40:56.340652 26750 layer_factory.hpp:77] Creating layer inception_4d/relu_5x5
+I0913 19:40:56.340662 26750 net.cpp:91] Creating Layer inception_4d/relu_5x5
+I0913 19:40:56.340667 26750 net.cpp:425] inception_4d/relu_5x5 <- inception_4d/5x5
+I0913 19:40:56.340675 26750 net.cpp:386] inception_4d/relu_5x5 -> inception_4d/5x5 (in-place)
+I0913 19:40:56.340917 26750 net.cpp:141] Setting up inception_4d/relu_5x5
+I0913 19:40:56.340929 26750 net.cpp:148] Top shape: 10 64 14 14 (125440)
+I0913 19:40:56.340932 26750 net.cpp:156] Memory required for data: 468392960
+I0913 19:40:56.340937 26750 layer_factory.hpp:77] Creating layer inception_4d/pool
+I0913 19:40:56.340950 26750 net.cpp:91] Creating Layer inception_4d/pool
+I0913 19:40:56.340955 26750 net.cpp:425] inception_4d/pool <- inception_4c/output_inception_4c/output_0_split_3
+I0913 19:40:56.340962 26750 net.cpp:399] inception_4d/pool -> inception_4d/pool
+I0913 19:40:56.341032 26750 net.cpp:141] Setting up inception_4d/pool
+I0913 19:40:56.341040 26750 net.cpp:148] Top shape: 10 512 14 14 (1003520)
+I0913 19:40:56.341044 26750 net.cpp:156] Memory required for data: 472407040
+I0913 19:40:56.341049 26750 layer_factory.hpp:77] Creating layer inception_4d/pool_proj
+I0913 19:40:56.341063 26750 net.cpp:91] Creating Layer inception_4d/pool_proj
+I0913 19:40:56.341069 26750 net.cpp:425] inception_4d/pool_proj <- inception_4d/pool
+I0913 19:40:56.341080 26750 net.cpp:399] inception_4d/pool_proj -> inception_4d/pool_proj
+I0913 19:40:56.342783 26750 net.cpp:141] Setting up inception_4d/pool_proj
+I0913 19:40:56.342798 26750 net.cpp:148] Top shape: 10 64 14 14 (125440)
+I0913 19:40:56.342803 26750 net.cpp:156] Memory required for data: 472908800
+I0913 19:40:56.342811 26750 layer_factory.hpp:77] Creating layer inception_4d/relu_pool_proj
+I0913 19:40:56.342821 26750 net.cpp:91] Creating Layer inception_4d/relu_pool_proj
+I0913 19:40:56.342828 26750 net.cpp:425] inception_4d/relu_pool_proj <- inception_4d/pool_proj
+I0913 19:40:56.342834 26750 net.cpp:386] inception_4d/relu_pool_proj -> inception_4d/pool_proj (in-place)
+I0913 19:40:56.343222 26750 net.cpp:141] Setting up inception_4d/relu_pool_proj
+I0913 19:40:56.343233 26750 net.cpp:148] Top shape: 10 64 14 14 (125440)
+I0913 19:40:56.343238 26750 net.cpp:156] Memory required for data: 473410560
+I0913 19:40:56.343242 26750 layer_factory.hpp:77] Creating layer inception_4d/output
+I0913 19:40:56.343252 26750 net.cpp:91] Creating Layer inception_4d/output
+I0913 19:40:56.343258 26750 net.cpp:425] inception_4d/output <- inception_4d/1x1
+I0913 19:40:56.343264 26750 net.cpp:425] inception_4d/output <- inception_4d/3x3
+I0913 19:40:56.343269 26750 net.cpp:425] inception_4d/output <- inception_4d/5x5
+I0913 19:40:56.343287 26750 net.cpp:425] inception_4d/output <- inception_4d/pool_proj
+I0913 19:40:56.343293 26750 net.cpp:399] inception_4d/output -> inception_4d/output
+I0913 19:40:56.343340 26750 net.cpp:141] Setting up inception_4d/output
+I0913 19:40:56.343350 26750 net.cpp:148] Top shape: 10 528 14 14 (1034880)
+I0913 19:40:56.343354 26750 net.cpp:156] Memory required for data: 477550080
+I0913 19:40:56.343359 26750 layer_factory.hpp:77] Creating layer inception_4d/output_inception_4d/output_0_split
+I0913 19:40:56.343367 26750 net.cpp:91] Creating Layer inception_4d/output_inception_4d/output_0_split
+I0913 19:40:56.343371 26750 net.cpp:425] inception_4d/output_inception_4d/output_0_split <- inception_4d/output
+I0913 19:40:56.343380 26750 net.cpp:399] inception_4d/output_inception_4d/output_0_split -> inception_4d/output_inception_4d/output_0_split_0
+I0913 19:40:56.343389 26750 net.cpp:399] inception_4d/output_inception_4d/output_0_split -> inception_4d/output_inception_4d/output_0_split_1
+I0913 19:40:56.343396 26750 net.cpp:399] inception_4d/output_inception_4d/output_0_split -> inception_4d/output_inception_4d/output_0_split_2
+I0913 19:40:56.343405 26750 net.cpp:399] inception_4d/output_inception_4d/output_0_split -> inception_4d/output_inception_4d/output_0_split_3
+I0913 19:40:56.343502 26750 net.cpp:141] Setting up inception_4d/output_inception_4d/output_0_split
+I0913 19:40:56.343513 26750 net.cpp:148] Top shape: 10 528 14 14 (1034880)
+I0913 19:40:56.343518 26750 net.cpp:148] Top shape: 10 528 14 14 (1034880)
+I0913 19:40:56.343523 26750 net.cpp:148] Top shape: 10 528 14 14 (1034880)
+I0913 19:40:56.343528 26750 net.cpp:148] Top shape: 10 528 14 14 (1034880)
+I0913 19:40:56.343531 26750 net.cpp:156] Memory required for data: 494108160
+I0913 19:40:56.343536 26750 layer_factory.hpp:77] Creating layer inception_4e/1x1
+I0913 19:40:56.343550 26750 net.cpp:91] Creating Layer inception_4e/1x1
+I0913 19:40:56.343556 26750 net.cpp:425] inception_4e/1x1 <- inception_4d/output_inception_4d/output_0_split_0
+I0913 19:40:56.343564 26750 net.cpp:399] inception_4e/1x1 -> inception_4e/1x1
+I0913 19:40:56.346768 26750 net.cpp:141] Setting up inception_4e/1x1
+I0913 19:40:56.346786 26750 net.cpp:148] Top shape: 10 256 14 14 (501760)
+I0913 19:40:56.346791 26750 net.cpp:156] Memory required for data: 496115200
+I0913 19:40:56.346799 26750 layer_factory.hpp:77] Creating layer inception_4e/relu_1x1
+I0913 19:40:56.346807 26750 net.cpp:91] Creating Layer inception_4e/relu_1x1
+I0913 19:40:56.346812 26750 net.cpp:425] inception_4e/relu_1x1 <- inception_4e/1x1
+I0913 19:40:56.346834 26750 net.cpp:386] inception_4e/relu_1x1 -> inception_4e/1x1 (in-place)
+I0913 19:40:56.347239 26750 net.cpp:141] Setting up inception_4e/relu_1x1
+I0913 19:40:56.347249 26750 net.cpp:148] Top shape: 10 256 14 14 (501760)
+I0913 19:40:56.347254 26750 net.cpp:156] Memory required for data: 498122240
+I0913 19:40:56.347259 26750 layer_factory.hpp:77] Creating layer inception_4e/3x3_reduce
+I0913 19:40:56.347273 26750 net.cpp:91] Creating Layer inception_4e/3x3_reduce
+I0913 19:40:56.347280 26750 net.cpp:425] inception_4e/3x3_reduce <- inception_4d/output_inception_4d/output_0_split_1
+I0913 19:40:56.347290 26750 net.cpp:399] inception_4e/3x3_reduce -> inception_4e/3x3_reduce
+I0913 19:40:56.349418 26750 net.cpp:141] Setting up inception_4e/3x3_reduce
+I0913 19:40:56.349438 26750 net.cpp:148] Top shape: 10 160 14 14 (313600)
+I0913 19:40:56.349455 26750 net.cpp:156] Memory required for data: 499376640
+I0913 19:40:56.349464 26750 layer_factory.hpp:77] Creating layer inception_4e/relu_3x3_reduce
+I0913 19:40:56.349472 26750 net.cpp:91] Creating Layer inception_4e/relu_3x3_reduce
+I0913 19:40:56.349478 26750 net.cpp:425] inception_4e/relu_3x3_reduce <- inception_4e/3x3_reduce
+I0913 19:40:56.349484 26750 net.cpp:386] inception_4e/relu_3x3_reduce -> inception_4e/3x3_reduce (in-place)
+I0913 19:40:56.349725 26750 net.cpp:141] Setting up inception_4e/relu_3x3_reduce
+I0913 19:40:56.349735 26750 net.cpp:148] Top shape: 10 160 14 14 (313600)
+I0913 19:40:56.349740 26750 net.cpp:156] Memory required for data: 500631040
+I0913 19:40:56.349745 26750 layer_factory.hpp:77] Creating layer inception_4e/3x3
+I0913 19:40:56.349758 26750 net.cpp:91] Creating Layer inception_4e/3x3
+I0913 19:40:56.349764 26750 net.cpp:425] inception_4e/3x3 <- inception_4e/3x3_reduce
+I0913 19:40:56.349776 26750 net.cpp:399] inception_4e/3x3 -> inception_4e/3x3
+I0913 19:40:56.355653 26750 net.cpp:141] Setting up inception_4e/3x3
+I0913 19:40:56.355681 26750 net.cpp:148] Top shape: 10 320 14 14 (627200)
+I0913 19:40:56.355686 26750 net.cpp:156] Memory required for data: 503139840
+I0913 19:40:56.355695 26750 layer_factory.hpp:77] Creating layer inception_4e/relu_3x3
+I0913 19:40:56.355707 26750 net.cpp:91] Creating Layer inception_4e/relu_3x3
+I0913 19:40:56.355715 26750 net.cpp:425] inception_4e/relu_3x3 <- inception_4e/3x3
+I0913 19:40:56.355723 26750 net.cpp:386] inception_4e/relu_3x3 -> inception_4e/3x3 (in-place)
+I0913 19:40:56.356155 26750 net.cpp:141] Setting up inception_4e/relu_3x3
+I0913 19:40:56.356168 26750 net.cpp:148] Top shape: 10 320 14 14 (627200)
+I0913 19:40:56.356173 26750 net.cpp:156] Memory required for data: 505648640
+I0913 19:40:56.356178 26750 layer_factory.hpp:77] Creating layer inception_4e/5x5_reduce
+I0913 19:40:56.356194 26750 net.cpp:91] Creating Layer inception_4e/5x5_reduce
+I0913 19:40:56.356200 26750 net.cpp:425] inception_4e/5x5_reduce <- inception_4d/output_inception_4d/output_0_split_2
+I0913 19:40:56.356212 26750 net.cpp:399] inception_4e/5x5_reduce -> inception_4e/5x5_reduce
+I0913 19:40:56.357650 26750 net.cpp:141] Setting up inception_4e/5x5_reduce
+I0913 19:40:56.357666 26750 net.cpp:148] Top shape: 10 32 14 14 (62720)
+I0913 19:40:56.357671 26750 net.cpp:156] Memory required for data: 505899520
+I0913 19:40:56.357679 26750 layer_factory.hpp:77] Creating layer inception_4e/relu_5x5_reduce
+I0913 19:40:56.357691 26750 net.cpp:91] Creating Layer inception_4e/relu_5x5_reduce
+I0913 19:40:56.357697 26750 net.cpp:425] inception_4e/relu_5x5_reduce <- inception_4e/5x5_reduce
+I0913 19:40:56.357703 26750 net.cpp:386] inception_4e/relu_5x5_reduce -> inception_4e/5x5_reduce (in-place)
+I0913 19:40:56.358108 26750 net.cpp:141] Setting up inception_4e/relu_5x5_reduce
+I0913 19:40:56.358121 26750 net.cpp:148] Top shape: 10 32 14 14 (62720)
+I0913 19:40:56.358125 26750 net.cpp:156] Memory required for data: 506150400
+I0913 19:40:56.358131 26750 layer_factory.hpp:77] Creating layer inception_4e/5x5
+I0913 19:40:56.358146 26750 net.cpp:91] Creating Layer inception_4e/5x5
+I0913 19:40:56.358152 26750 net.cpp:425] inception_4e/5x5 <- inception_4e/5x5_reduce
+I0913 19:40:56.358161 26750 net.cpp:399] inception_4e/5x5 -> inception_4e/5x5
+I0913 19:40:56.361075 26750 net.cpp:141] Setting up inception_4e/5x5
+I0913 19:40:56.361104 26750 net.cpp:148] Top shape: 10 128 14 14 (250880)
+I0913 19:40:56.361109 26750 net.cpp:156] Memory required for data: 507153920
+I0913 19:40:56.361116 26750 layer_factory.hpp:77] Creating layer inception_4e/relu_5x5
+I0913 19:40:56.361124 26750 net.cpp:91] Creating Layer inception_4e/relu_5x5
+I0913 19:40:56.361129 26750 net.cpp:425] inception_4e/relu_5x5 <- inception_4e/5x5
+I0913 19:40:56.361140 26750 net.cpp:386] inception_4e/relu_5x5 -> inception_4e/5x5 (in-place)
+I0913 19:40:56.361378 26750 net.cpp:141] Setting up inception_4e/relu_5x5
+I0913 19:40:56.361390 26750 net.cpp:148] Top shape: 10 128 14 14 (250880)
+I0913 19:40:56.361395 26750 net.cpp:156] Memory required for data: 508157440
+I0913 19:40:56.361399 26750 layer_factory.hpp:77] Creating layer inception_4e/pool
+I0913 19:40:56.361409 26750 net.cpp:91] Creating Layer inception_4e/pool
+I0913 19:40:56.361414 26750 net.cpp:425] inception_4e/pool <- inception_4d/output_inception_4d/output_0_split_3
+I0913 19:40:56.361421 26750 net.cpp:399] inception_4e/pool -> inception_4e/pool
+I0913 19:40:56.361488 26750 net.cpp:141] Setting up inception_4e/pool
+I0913 19:40:56.361497 26750 net.cpp:148] Top shape: 10 528 14 14 (1034880)
+I0913 19:40:56.361501 26750 net.cpp:156] Memory required for data: 512296960
+I0913 19:40:56.361505 26750 layer_factory.hpp:77] Creating layer inception_4e/pool_proj
+I0913 19:40:56.361521 26750 net.cpp:91] Creating Layer inception_4e/pool_proj
+I0913 19:40:56.361526 26750 net.cpp:425] inception_4e/pool_proj <- inception_4e/pool
+I0913 19:40:56.361536 26750 net.cpp:399] inception_4e/pool_proj -> inception_4e/pool_proj
+I0913 19:40:56.363518 26750 net.cpp:141] Setting up inception_4e/pool_proj
+I0913 19:40:56.363533 26750 net.cpp:148] Top shape: 10 128 14 14 (250880)
+I0913 19:40:56.363538 26750 net.cpp:156] Memory required for data: 513300480
+I0913 19:40:56.363546 26750 layer_factory.hpp:77] Creating layer inception_4e/relu_pool_proj
+I0913 19:40:56.363554 26750 net.cpp:91] Creating Layer inception_4e/relu_pool_proj
+I0913 19:40:56.363560 26750 net.cpp:425] inception_4e/relu_pool_proj <- inception_4e/pool_proj
+I0913 19:40:56.363569 26750 net.cpp:386] inception_4e/relu_pool_proj -> inception_4e/pool_proj (in-place)
+I0913 19:40:56.363988 26750 net.cpp:141] Setting up inception_4e/relu_pool_proj
+I0913 19:40:56.364001 26750 net.cpp:148] Top shape: 10 128 14 14 (250880)
+I0913 19:40:56.364006 26750 net.cpp:156] Memory required for data: 514304000
+I0913 19:40:56.364011 26750 layer_factory.hpp:77] Creating layer inception_4e/output
+I0913 19:40:56.364019 26750 net.cpp:91] Creating Layer inception_4e/output
+I0913 19:40:56.364024 26750 net.cpp:425] inception_4e/output <- inception_4e/1x1
+I0913 19:40:56.364030 26750 net.cpp:425] inception_4e/output <- inception_4e/3x3
+I0913 19:40:56.364038 26750 net.cpp:425] inception_4e/output <- inception_4e/5x5
+I0913 19:40:56.364044 26750 net.cpp:425] inception_4e/output <- inception_4e/pool_proj
+I0913 19:40:56.364050 26750 net.cpp:399] inception_4e/output -> inception_4e/output
+I0913 19:40:56.364102 26750 net.cpp:141] Setting up inception_4e/output
+I0913 19:40:56.364112 26750 net.cpp:148] Top shape: 10 832 14 14 (1630720)
+I0913 19:40:56.364116 26750 net.cpp:156] Memory required for data: 520826880
+I0913 19:40:56.364120 26750 layer_factory.hpp:77] Creating layer pool4/3x3_s2
+I0913 19:40:56.364135 26750 net.cpp:91] Creating Layer pool4/3x3_s2
+I0913 19:40:56.364140 26750 net.cpp:425] pool4/3x3_s2 <- inception_4e/output
+I0913 19:40:56.364151 26750 net.cpp:399] pool4/3x3_s2 -> pool4/3x3_s2
+I0913 19:40:56.364213 26750 net.cpp:141] Setting up pool4/3x3_s2
+I0913 19:40:56.364223 26750 net.cpp:148] Top shape: 10 832 7 7 (407680)
+I0913 19:40:56.364228 26750 net.cpp:156] Memory required for data: 522457600
+I0913 19:40:56.364231 26750 layer_factory.hpp:77] Creating layer pool4/3x3_s2_pool4/3x3_s2_0_split
+I0913 19:40:56.364243 26750 net.cpp:91] Creating Layer pool4/3x3_s2_pool4/3x3_s2_0_split
+I0913 19:40:56.364248 26750 net.cpp:425] pool4/3x3_s2_pool4/3x3_s2_0_split <- pool4/3x3_s2
+I0913 19:40:56.364254 26750 net.cpp:399] pool4/3x3_s2_pool4/3x3_s2_0_split -> pool4/3x3_s2_pool4/3x3_s2_0_split_0
+I0913 19:40:56.364261 26750 net.cpp:399] pool4/3x3_s2_pool4/3x3_s2_0_split -> pool4/3x3_s2_pool4/3x3_s2_0_split_1
+I0913 19:40:56.364269 26750 net.cpp:399] pool4/3x3_s2_pool4/3x3_s2_0_split -> pool4/3x3_s2_pool4/3x3_s2_0_split_2
+I0913 19:40:56.364276 26750 net.cpp:399] pool4/3x3_s2_pool4/3x3_s2_0_split -> pool4/3x3_s2_pool4/3x3_s2_0_split_3
+I0913 19:40:56.364373 26750 net.cpp:141] Setting up pool4/3x3_s2_pool4/3x3_s2_0_split
+I0913 19:40:56.364382 26750 net.cpp:148] Top shape: 10 832 7 7 (407680)
+I0913 19:40:56.364388 26750 net.cpp:148] Top shape: 10 832 7 7 (407680)
+I0913 19:40:56.364393 26750 net.cpp:148] Top shape: 10 832 7 7 (407680)
+I0913 19:40:56.364398 26750 net.cpp:148] Top shape: 10 832 7 7 (407680)
+I0913 19:40:56.364403 26750 net.cpp:156] Memory required for data: 528980480
+I0913 19:40:56.364406 26750 layer_factory.hpp:77] Creating layer inception_5a/1x1
+I0913 19:40:56.364421 26750 net.cpp:91] Creating Layer inception_5a/1x1
+I0913 19:40:56.364428 26750 net.cpp:425] inception_5a/1x1 <- pool4/3x3_s2_pool4/3x3_s2_0_split_0
+I0913 19:40:56.364437 26750 net.cpp:399] inception_5a/1x1 -> inception_5a/1x1
+I0913 19:40:56.367995 26750 net.cpp:141] Setting up inception_5a/1x1
+I0913 19:40:56.368012 26750 net.cpp:148] Top shape: 10 256 7 7 (125440)
+I0913 19:40:56.368017 26750 net.cpp:156] Memory required for data: 529482240
+I0913 19:40:56.368026 26750 layer_factory.hpp:77] Creating layer inception_5a/relu_1x1
+I0913 19:40:56.368036 26750 net.cpp:91] Creating Layer inception_5a/relu_1x1
+I0913 19:40:56.368041 26750 net.cpp:425] inception_5a/relu_1x1 <- inception_5a/1x1
+I0913 19:40:56.368051 26750 net.cpp:386] inception_5a/relu_1x1 -> inception_5a/1x1 (in-place)
+I0913 19:40:56.368463 26750 net.cpp:141] Setting up inception_5a/relu_1x1
+I0913 19:40:56.368475 26750 net.cpp:148] Top shape: 10 256 7 7 (125440)
+I0913 19:40:56.368479 26750 net.cpp:156] Memory required for data: 529984000
+I0913 19:40:56.368484 26750 layer_factory.hpp:77] Creating layer inception_5a/3x3_reduce
+I0913 19:40:56.368500 26750 net.cpp:91] Creating Layer inception_5a/3x3_reduce
+I0913 19:40:56.368506 26750 net.cpp:425] inception_5a/3x3_reduce <- pool4/3x3_s2_pool4/3x3_s2_0_split_1
+I0913 19:40:56.368518 26750 net.cpp:399] inception_5a/3x3_reduce -> inception_5a/3x3_reduce
+I0913 19:40:56.371690 26750 net.cpp:141] Setting up inception_5a/3x3_reduce
+I0913 19:40:56.371706 26750 net.cpp:148] Top shape: 10 160 7 7 (78400)
+I0913 19:40:56.371711 26750 net.cpp:156] Memory required for data: 530297600
+I0913 19:40:56.371721 26750 layer_factory.hpp:77] Creating layer inception_5a/relu_3x3_reduce
+I0913 19:40:56.371732 26750 net.cpp:91] Creating Layer inception_5a/relu_3x3_reduce
+I0913 19:40:56.371739 26750 net.cpp:425] inception_5a/relu_3x3_reduce <- inception_5a/3x3_reduce
+I0913 19:40:56.371747 26750 net.cpp:386] inception_5a/relu_3x3_reduce -> inception_5a/3x3_reduce (in-place)
+I0913 19:40:56.371992 26750 net.cpp:141] Setting up inception_5a/relu_3x3_reduce
+I0913 19:40:56.372002 26750 net.cpp:148] Top shape: 10 160 7 7 (78400)
+I0913 19:40:56.372006 26750 net.cpp:156] Memory required for data: 530611200
+I0913 19:40:56.372011 26750 layer_factory.hpp:77] Creating layer inception_5a/3x3
+I0913 19:40:56.372028 26750 net.cpp:91] Creating Layer inception_5a/3x3
+I0913 19:40:56.372035 26750 net.cpp:425] inception_5a/3x3 <- inception_5a/3x3_reduce
+I0913 19:40:56.372045 26750 net.cpp:399] inception_5a/3x3 -> inception_5a/3x3
+I0913 19:40:56.378451 26750 net.cpp:141] Setting up inception_5a/3x3
+I0913 19:40:56.378473 26750 net.cpp:148] Top shape: 10 320 7 7 (156800)
+I0913 19:40:56.378479 26750 net.cpp:156] Memory required for data: 531238400
+I0913 19:40:56.378491 26750 layer_factory.hpp:77] Creating layer inception_5a/relu_3x3
+I0913 19:40:56.378501 26750 net.cpp:91] Creating Layer inception_5a/relu_3x3
+I0913 19:40:56.378507 26750 net.cpp:425] inception_5a/relu_3x3 <- inception_5a/3x3
+I0913 19:40:56.378515 26750 net.cpp:386] inception_5a/relu_3x3 -> inception_5a/3x3 (in-place)
+I0913 19:40:56.378940 26750 net.cpp:141] Setting up inception_5a/relu_3x3
+I0913 19:40:56.378957 26750 net.cpp:148] Top shape: 10 320 7 7 (156800)
+I0913 19:40:56.378962 26750 net.cpp:156] Memory required for data: 531865600
+I0913 19:40:56.378967 26750 layer_factory.hpp:77] Creating layer inception_5a/5x5_reduce
+I0913 19:40:56.378981 26750 net.cpp:91] Creating Layer inception_5a/5x5_reduce
+I0913 19:40:56.378988 26750 net.cpp:425] inception_5a/5x5_reduce <- pool4/3x3_s2_pool4/3x3_s2_0_split_2
+I0913 19:40:56.378999 26750 net.cpp:399] inception_5a/5x5_reduce -> inception_5a/5x5_reduce
+I0913 19:40:56.380575 26750 net.cpp:141] Setting up inception_5a/5x5_reduce
+I0913 19:40:56.380591 26750 net.cpp:148] Top shape: 10 32 7 7 (15680)
+I0913 19:40:56.380596 26750 net.cpp:156] Memory required for data: 531928320
+I0913 19:40:56.380605 26750 layer_factory.hpp:77] Creating layer inception_5a/relu_5x5_reduce
+I0913 19:40:56.380617 26750 net.cpp:91] Creating Layer inception_5a/relu_5x5_reduce
+I0913 19:40:56.380623 26750 net.cpp:425] inception_5a/relu_5x5_reduce <- inception_5a/5x5_reduce
+I0913 19:40:56.380630 26750 net.cpp:386] inception_5a/relu_5x5_reduce -> inception_5a/5x5_reduce (in-place)
+I0913 19:40:56.381043 26750 net.cpp:141] Setting up inception_5a/relu_5x5_reduce
+I0913 19:40:56.381058 26750 net.cpp:148] Top shape: 10 32 7 7 (15680)
+I0913 19:40:56.381062 26750 net.cpp:156] Memory required for data: 531991040
+I0913 19:40:56.381067 26750 layer_factory.hpp:77] Creating layer inception_5a/5x5
+I0913 19:40:56.381084 26750 net.cpp:91] Creating Layer inception_5a/5x5
+I0913 19:40:56.381090 26750 net.cpp:425] inception_5a/5x5 <- inception_5a/5x5_reduce
+I0913 19:40:56.381099 26750 net.cpp:399] inception_5a/5x5 -> inception_5a/5x5
+I0913 19:40:56.383361 26750 net.cpp:141] Setting up inception_5a/5x5
+I0913 19:40:56.383380 26750 net.cpp:148] Top shape: 10 128 7 7 (62720)
+I0913 19:40:56.383385 26750 net.cpp:156] Memory required for data: 532241920
+I0913 19:40:56.383394 26750 layer_factory.hpp:77] Creating layer inception_5a/relu_5x5
+I0913 19:40:56.383430 26750 net.cpp:91] Creating Layer inception_5a/relu_5x5
+I0913 19:40:56.383436 26750 net.cpp:425] inception_5a/relu_5x5 <- inception_5a/5x5
+I0913 19:40:56.383443 26750 net.cpp:386] inception_5a/relu_5x5 -> inception_5a/5x5 (in-place)
+I0913 19:40:56.383684 26750 net.cpp:141] Setting up inception_5a/relu_5x5
+I0913 19:40:56.383694 26750 net.cpp:148] Top shape: 10 128 7 7 (62720)
+I0913 19:40:56.383699 26750 net.cpp:156] Memory required for data: 532492800
+I0913 19:40:56.383705 26750 layer_factory.hpp:77] Creating layer inception_5a/pool
+I0913 19:40:56.383718 26750 net.cpp:91] Creating Layer inception_5a/pool
+I0913 19:40:56.383724 26750 net.cpp:425] inception_5a/pool <- pool4/3x3_s2_pool4/3x3_s2_0_split_3
+I0913 19:40:56.383731 26750 net.cpp:399] inception_5a/pool -> inception_5a/pool
+I0913 19:40:56.383806 26750 net.cpp:141] Setting up inception_5a/pool
+I0913 19:40:56.383816 26750 net.cpp:148] Top shape: 10 832 7 7 (407680)
+I0913 19:40:56.383819 26750 net.cpp:156] Memory required for data: 534123520
+I0913 19:40:56.383824 26750 layer_factory.hpp:77] Creating layer inception_5a/pool_proj
+I0913 19:40:56.383838 26750 net.cpp:91] Creating Layer inception_5a/pool_proj
+I0913 19:40:56.383844 26750 net.cpp:425] inception_5a/pool_proj <- inception_5a/pool
+I0913 19:40:56.383855 26750 net.cpp:399] inception_5a/pool_proj -> inception_5a/pool_proj
+I0913 19:40:56.386855 26750 net.cpp:141] Setting up inception_5a/pool_proj
+I0913 19:40:56.386873 26750 net.cpp:148] Top shape: 10 128 7 7 (62720)
+I0913 19:40:56.386878 26750 net.cpp:156] Memory required for data: 534374400
+I0913 19:40:56.386886 26750 layer_factory.hpp:77] Creating layer inception_5a/relu_pool_proj
+I0913 19:40:56.386899 26750 net.cpp:91] Creating Layer inception_5a/relu_pool_proj
+I0913 19:40:56.386905 26750 net.cpp:425] inception_5a/relu_pool_proj <- inception_5a/pool_proj
+I0913 19:40:56.386914 26750 net.cpp:386] inception_5a/relu_pool_proj -> inception_5a/pool_proj (in-place)
+I0913 19:40:56.387332 26750 net.cpp:141] Setting up inception_5a/relu_pool_proj
+I0913 19:40:56.387344 26750 net.cpp:148] Top shape: 10 128 7 7 (62720)
+I0913 19:40:56.387348 26750 net.cpp:156] Memory required for data: 534625280
+I0913 19:40:56.387353 26750 layer_factory.hpp:77] Creating layer inception_5a/output
+I0913 19:40:56.387363 26750 net.cpp:91] Creating Layer inception_5a/output
+I0913 19:40:56.387368 26750 net.cpp:425] inception_5a/output <- inception_5a/1x1
+I0913 19:40:56.387375 26750 net.cpp:425] inception_5a/output <- inception_5a/3x3
+I0913 19:40:56.387380 26750 net.cpp:425] inception_5a/output <- inception_5a/5x5
+I0913 19:40:56.387387 26750 net.cpp:425] inception_5a/output <- inception_5a/pool_proj
+I0913 19:40:56.387400 26750 net.cpp:399] inception_5a/output -> inception_5a/output
+I0913 19:40:56.387454 26750 net.cpp:141] Setting up inception_5a/output
+I0913 19:40:56.387465 26750 net.cpp:148] Top shape: 10 832 7 7 (407680)
+I0913 19:40:56.387470 26750 net.cpp:156] Memory required for data: 536256000
+I0913 19:40:56.387475 26750 layer_factory.hpp:77] Creating layer inception_5a/output_inception_5a/output_0_split
+I0913 19:40:56.387488 26750 net.cpp:91] Creating Layer inception_5a/output_inception_5a/output_0_split
+I0913 19:40:56.387495 26750 net.cpp:425] inception_5a/output_inception_5a/output_0_split <- inception_5a/output
+I0913 19:40:56.387501 26750 net.cpp:399] inception_5a/output_inception_5a/output_0_split -> inception_5a/output_inception_5a/output_0_split_0
+I0913 19:40:56.387509 26750 net.cpp:399] inception_5a/output_inception_5a/output_0_split -> inception_5a/output_inception_5a/output_0_split_1
+I0913 19:40:56.387519 26750 net.cpp:399] inception_5a/output_inception_5a/output_0_split -> inception_5a/output_inception_5a/output_0_split_2
+I0913 19:40:56.387527 26750 net.cpp:399] inception_5a/output_inception_5a/output_0_split -> inception_5a/output_inception_5a/output_0_split_3
+I0913 19:40:56.387627 26750 net.cpp:141] Setting up inception_5a/output_inception_5a/output_0_split
+I0913 19:40:56.387637 26750 net.cpp:148] Top shape: 10 832 7 7 (407680)
+I0913 19:40:56.387642 26750 net.cpp:148] Top shape: 10 832 7 7 (407680)
+I0913 19:40:56.387647 26750 net.cpp:148] Top shape: 10 832 7 7 (407680)
+I0913 19:40:56.387652 26750 net.cpp:148] Top shape: 10 832 7 7 (407680)
+I0913 19:40:56.387656 26750 net.cpp:156] Memory required for data: 542778880
+I0913 19:40:56.387661 26750 layer_factory.hpp:77] Creating layer inception_5b/1x1
+I0913 19:40:56.387676 26750 net.cpp:91] Creating Layer inception_5b/1x1
+I0913 19:40:56.387681 26750 net.cpp:425] inception_5b/1x1 <- inception_5a/output_inception_5a/output_0_split_0
+I0913 19:40:56.387692 26750 net.cpp:399] inception_5b/1x1 -> inception_5b/1x1
+I0913 19:40:56.392236 26750 net.cpp:141] Setting up inception_5b/1x1
+I0913 19:40:56.392254 26750 net.cpp:148] Top shape: 10 384 7 7 (188160)
+I0913 19:40:56.392258 26750 net.cpp:156] Memory required for data: 543531520
+I0913 19:40:56.392267 26750 layer_factory.hpp:77] Creating layer inception_5b/relu_1x1
+I0913 19:40:56.392277 26750 net.cpp:91] Creating Layer inception_5b/relu_1x1
+I0913 19:40:56.392282 26750 net.cpp:425] inception_5b/relu_1x1 <- inception_5b/1x1
+I0913 19:40:56.392292 26750 net.cpp:386] inception_5b/relu_1x1 -> inception_5b/1x1 (in-place)
+I0913 19:40:56.392709 26750 net.cpp:141] Setting up inception_5b/relu_1x1
+I0913 19:40:56.392724 26750 net.cpp:148] Top shape: 10 384 7 7 (188160)
+I0913 19:40:56.392727 26750 net.cpp:156] Memory required for data: 544284160
+I0913 19:40:56.392734 26750 layer_factory.hpp:77] Creating layer inception_5b/3x3_reduce
+I0913 19:40:56.392752 26750 net.cpp:91] Creating Layer inception_5b/3x3_reduce
+I0913 19:40:56.392758 26750 net.cpp:425] inception_5b/3x3_reduce <- inception_5a/output_inception_5a/output_0_split_1
+I0913 19:40:56.392770 26750 net.cpp:399] inception_5b/3x3_reduce -> inception_5b/3x3_reduce
+I0913 19:40:56.396198 26750 net.cpp:141] Setting up inception_5b/3x3_reduce
+I0913 19:40:56.396215 26750 net.cpp:148] Top shape: 10 192 7 7 (94080)
+I0913 19:40:56.396220 26750 net.cpp:156] Memory required for data: 544660480
+I0913 19:40:56.396229 26750 layer_factory.hpp:77] Creating layer inception_5b/relu_3x3_reduce
+I0913 19:40:56.396239 26750 net.cpp:91] Creating Layer inception_5b/relu_3x3_reduce
+I0913 19:40:56.396244 26750 net.cpp:425] inception_5b/relu_3x3_reduce <- inception_5b/3x3_reduce
+I0913 19:40:56.396255 26750 net.cpp:386] inception_5b/relu_3x3_reduce -> inception_5b/3x3_reduce (in-place)
+I0913 19:40:56.396499 26750 net.cpp:141] Setting up inception_5b/relu_3x3_reduce
+I0913 19:40:56.396510 26750 net.cpp:148] Top shape: 10 192 7 7 (94080)
+I0913 19:40:56.396517 26750 net.cpp:156] Memory required for data: 545036800
+I0913 19:40:56.396522 26750 layer_factory.hpp:77] Creating layer inception_5b/3x3
+I0913 19:40:56.396535 26750 net.cpp:91] Creating Layer inception_5b/3x3
+I0913 19:40:56.396540 26750 net.cpp:425] inception_5b/3x3 <- inception_5b/3x3_reduce
+I0913 19:40:56.396551 26750 net.cpp:399] inception_5b/3x3 -> inception_5b/3x3
+I0913 19:40:56.404438 26750 net.cpp:141] Setting up inception_5b/3x3
+I0913 19:40:56.404469 26750 net.cpp:148] Top shape: 10 384 7 7 (188160)
+I0913 19:40:56.404474 26750 net.cpp:156] Memory required for data: 545789440
+I0913 19:40:56.404484 26750 layer_factory.hpp:77] Creating layer inception_5b/relu_3x3
+I0913 19:40:56.404496 26750 net.cpp:91] Creating Layer inception_5b/relu_3x3
+I0913 19:40:56.404505 26750 net.cpp:425] inception_5b/relu_3x3 <- inception_5b/3x3
+I0913 19:40:56.404515 26750 net.cpp:386] inception_5b/relu_3x3 -> inception_5b/3x3 (in-place)
+I0913 19:40:56.404942 26750 net.cpp:141] Setting up inception_5b/relu_3x3
+I0913 19:40:56.404953 26750 net.cpp:148] Top shape: 10 384 7 7 (188160)
+I0913 19:40:56.404958 26750 net.cpp:156] Memory required for data: 546542080
+I0913 19:40:56.404963 26750 layer_factory.hpp:77] Creating layer inception_5b/5x5_reduce
+I0913 19:40:56.404979 26750 net.cpp:91] Creating Layer inception_5b/5x5_reduce
+I0913 19:40:56.404985 26750 net.cpp:425] inception_5b/5x5_reduce <- inception_5a/output_inception_5a/output_0_split_2
+I0913 19:40:56.404999 26750 net.cpp:399] inception_5b/5x5_reduce -> inception_5b/5x5_reduce
+I0913 19:40:56.406711 26750 net.cpp:141] Setting up inception_5b/5x5_reduce
+I0913 19:40:56.406728 26750 net.cpp:148] Top shape: 10 48 7 7 (23520)
+I0913 19:40:56.406733 26750 net.cpp:156] Memory required for data: 546636160
+I0913 19:40:56.406741 26750 layer_factory.hpp:77] Creating layer inception_5b/relu_5x5_reduce
+I0913 19:40:56.406749 26750 net.cpp:91] Creating Layer inception_5b/relu_5x5_reduce
+I0913 19:40:56.406755 26750 net.cpp:425] inception_5b/relu_5x5_reduce <- inception_5b/5x5_reduce
+I0913 19:40:56.406764 26750 net.cpp:386] inception_5b/relu_5x5_reduce -> inception_5b/5x5_reduce (in-place)
+I0913 19:40:56.407196 26750 net.cpp:141] Setting up inception_5b/relu_5x5_reduce
+I0913 19:40:56.407209 26750 net.cpp:148] Top shape: 10 48 7 7 (23520)
+I0913 19:40:56.407213 26750 net.cpp:156] Memory required for data: 546730240
+I0913 19:40:56.407218 26750 layer_factory.hpp:77] Creating layer inception_5b/5x5
+I0913 19:40:56.407234 26750 net.cpp:91] Creating Layer inception_5b/5x5
+I0913 19:40:56.407240 26750 net.cpp:425] inception_5b/5x5 <- inception_5b/5x5_reduce
+I0913 19:40:56.407248 26750 net.cpp:399] inception_5b/5x5 -> inception_5b/5x5
+I0913 19:40:56.410251 26750 net.cpp:141] Setting up inception_5b/5x5
+I0913 19:40:56.410269 26750 net.cpp:148] Top shape: 10 128 7 7 (62720)
+I0913 19:40:56.410274 26750 net.cpp:156] Memory required for data: 546981120
+I0913 19:40:56.410281 26750 layer_factory.hpp:77] Creating layer inception_5b/relu_5x5
+I0913 19:40:56.410291 26750 net.cpp:91] Creating Layer inception_5b/relu_5x5
+I0913 19:40:56.410296 26750 net.cpp:425] inception_5b/relu_5x5 <- inception_5b/5x5
+I0913 19:40:56.410303 26750 net.cpp:386] inception_5b/relu_5x5 -> inception_5b/5x5 (in-place)
+I0913 19:40:56.410555 26750 net.cpp:141] Setting up inception_5b/relu_5x5
+I0913 19:40:56.410567 26750 net.cpp:148] Top shape: 10 128 7 7 (62720)
+I0913 19:40:56.410570 26750 net.cpp:156] Memory required for data: 547232000
+I0913 19:40:56.410576 26750 layer_factory.hpp:77] Creating layer inception_5b/pool
+I0913 19:40:56.410589 26750 net.cpp:91] Creating Layer inception_5b/pool
+I0913 19:40:56.410595 26750 net.cpp:425] inception_5b/pool <- inception_5a/output_inception_5a/output_0_split_3
+I0913 19:40:56.410603 26750 net.cpp:399] inception_5b/pool -> inception_5b/pool
+I0913 19:40:56.410681 26750 net.cpp:141] Setting up inception_5b/pool
+I0913 19:40:56.410691 26750 net.cpp:148] Top shape: 10 832 7 7 (407680)
+I0913 19:40:56.410694 26750 net.cpp:156] Memory required for data: 548862720
+I0913 19:40:56.410699 26750 layer_factory.hpp:77] Creating layer inception_5b/pool_proj
+I0913 19:40:56.410714 26750 net.cpp:91] Creating Layer inception_5b/pool_proj
+I0913 19:40:56.410720 26750 net.cpp:425] inception_5b/pool_proj <- inception_5b/pool
+I0913 19:40:56.410730 26750 net.cpp:399] inception_5b/pool_proj -> inception_5b/pool_proj
+I0913 19:40:56.413789 26750 net.cpp:141] Setting up inception_5b/pool_proj
+I0913 19:40:56.413805 26750 net.cpp:148] Top shape: 10 128 7 7 (62720)
+I0913 19:40:56.413817 26750 net.cpp:156] Memory required for data: 549113600
+I0913 19:40:56.413826 26750 layer_factory.hpp:77] Creating layer inception_5b/relu_pool_proj
+I0913 19:40:56.413837 26750 net.cpp:91] Creating Layer inception_5b/relu_pool_proj
+I0913 19:40:56.413846 26750 net.cpp:425] inception_5b/relu_pool_proj <- inception_5b/pool_proj
+I0913 19:40:56.413852 26750 net.cpp:386] inception_5b/relu_pool_proj -> inception_5b/pool_proj (in-place)
+I0913 19:40:56.414275 26750 net.cpp:141] Setting up inception_5b/relu_pool_proj
+I0913 19:40:56.414288 26750 net.cpp:148] Top shape: 10 128 7 7 (62720)
+I0913 19:40:56.414293 26750 net.cpp:156] Memory required for data: 549364480
+I0913 19:40:56.414299 26750 layer_factory.hpp:77] Creating layer inception_5b/output
+I0913 19:40:56.414310 26750 net.cpp:91] Creating Layer inception_5b/output
+I0913 19:40:56.414315 26750 net.cpp:425] inception_5b/output <- inception_5b/1x1
+I0913 19:40:56.414322 26750 net.cpp:425] inception_5b/output <- inception_5b/3x3
+I0913 19:40:56.414327 26750 net.cpp:425] inception_5b/output <- inception_5b/5x5
+I0913 19:40:56.414332 26750 net.cpp:425] inception_5b/output <- inception_5b/pool_proj
+I0913 19:40:56.414338 26750 net.cpp:399] inception_5b/output -> inception_5b/output
+I0913 19:40:56.414392 26750 net.cpp:141] Setting up inception_5b/output
+I0913 19:40:56.414402 26750 net.cpp:148] Top shape: 10 1024 7 7 (501760)
+I0913 19:40:56.414405 26750 net.cpp:156] Memory required for data: 551371520
+I0913 19:40:56.414410 26750 layer_factory.hpp:77] Creating layer pool5/7x7_s1
+I0913 19:40:56.414418 26750 net.cpp:91] Creating Layer pool5/7x7_s1
+I0913 19:40:56.414423 26750 net.cpp:425] pool5/7x7_s1 <- inception_5b/output
+I0913 19:40:56.414433 26750 net.cpp:399] pool5/7x7_s1 -> pool5/7x7_s1
+I0913 19:40:56.414741 26750 net.cpp:141] Setting up pool5/7x7_s1
+I0913 19:40:56.414754 26750 net.cpp:148] Top shape: 10 1024 1 1 (10240)
+I0913 19:40:56.414759 26750 net.cpp:156] Memory required for data: 551412480
+I0913 19:40:56.414764 26750 layer_factory.hpp:77] Creating layer pool5/drop_7x7_s1
+I0913 19:40:56.414773 26750 net.cpp:91] Creating Layer pool5/drop_7x7_s1
+I0913 19:40:56.414778 26750 net.cpp:425] pool5/drop_7x7_s1 <- pool5/7x7_s1
+I0913 19:40:56.414785 26750 net.cpp:386] pool5/drop_7x7_s1 -> pool5/7x7_s1 (in-place)
+I0913 19:40:56.414836 26750 net.cpp:141] Setting up pool5/drop_7x7_s1
+I0913 19:40:56.414845 26750 net.cpp:148] Top shape: 10 1024 1 1 (10240)
+I0913 19:40:56.414849 26750 net.cpp:156] Memory required for data: 551453440
+I0913 19:40:56.414855 26750 layer_factory.hpp:77] Creating layer loss3/classifier
+I0913 19:40:56.414875 26750 net.cpp:91] Creating Layer loss3/classifier
+I0913 19:40:56.414880 26750 net.cpp:425] loss3/classifier <- pool5/7x7_s1
+I0913 19:40:56.414887 26750 net.cpp:399] loss3/classifier -> loss3/classifier
+I0913 19:40:56.424533 26750 net.cpp:141] Setting up loss3/classifier
+I0913 19:40:56.424567 26750 net.cpp:148] Top shape: 10 1000 (10000)
+I0913 19:40:56.424572 26750 net.cpp:156] Memory required for data: 551493440
+I0913 19:40:56.424583 26750 layer_factory.hpp:77] Creating layer prob
+I0913 19:40:56.424598 26750 net.cpp:91] Creating Layer prob
+I0913 19:40:56.424605 26750 net.cpp:425] prob <- loss3/classifier
+I0913 19:40:56.424613 26750 net.cpp:399] prob -> prob
+I0913 19:40:56.425215 26750 net.cpp:141] Setting up prob
+I0913 19:40:56.425230 26750 net.cpp:148] Top shape: 10 1000 (10000)
+I0913 19:40:56.425235 26750 net.cpp:156] Memory required for data: 551533440
+I0913 19:40:56.425241 26750 net.cpp:219] prob does not need backward computation.
+I0913 19:40:56.425246 26750 net.cpp:219] loss3/classifier does not need backward computation.
+I0913 19:40:56.425251 26750 net.cpp:219] pool5/drop_7x7_s1 does not need backward computation.
+I0913 19:40:56.425256 26750 net.cpp:219] pool5/7x7_s1 does not need backward computation.
+I0913 19:40:56.425259 26750 net.cpp:219] inception_5b/output does not need backward computation.
+I0913 19:40:56.425266 26750 net.cpp:219] inception_5b/relu_pool_proj does not need backward computation.
+I0913 19:40:56.425269 26750 net.cpp:219] inception_5b/pool_proj does not need backward computation.
+I0913 19:40:56.425274 26750 net.cpp:219] inception_5b/pool does not need backward computation.
+I0913 19:40:56.425278 26750 net.cpp:219] inception_5b/relu_5x5 does not need backward computation.
+I0913 19:40:56.425283 26750 net.cpp:219] inception_5b/5x5 does not need backward computation.
+I0913 19:40:56.425287 26750 net.cpp:219] inception_5b/relu_5x5_reduce does not need backward computation.
+I0913 19:40:56.425292 26750 net.cpp:219] inception_5b/5x5_reduce does not need backward computation.
+I0913 19:40:56.425297 26750 net.cpp:219] inception_5b/relu_3x3 does not need backward computation.
+I0913 19:40:56.425300 26750 net.cpp:219] inception_5b/3x3 does not need backward computation.
+I0913 19:40:56.425305 26750 net.cpp:219] inception_5b/relu_3x3_reduce does not need backward computation.
+I0913 19:40:56.425309 26750 net.cpp:219] inception_5b/3x3_reduce does not need backward computation.
+I0913 19:40:56.425313 26750 net.cpp:219] inception_5b/relu_1x1 does not need backward computation.
+I0913 19:40:56.425318 26750 net.cpp:219] inception_5b/1x1 does not need backward computation.
+I0913 19:40:56.425323 26750 net.cpp:219] inception_5a/output_inception_5a/output_0_split does not need backward computation.
+I0913 19:40:56.425328 26750 net.cpp:219] inception_5a/output does not need backward computation.
+I0913 19:40:56.425333 26750 net.cpp:219] inception_5a/relu_pool_proj does not need backward computation.
+I0913 19:40:56.425338 26750 net.cpp:219] inception_5a/pool_proj does not need backward computation.
+I0913 19:40:56.425343 26750 net.cpp:219] inception_5a/pool does not need backward computation.
+I0913 19:40:56.425348 26750 net.cpp:219] inception_5a/relu_5x5 does not need backward computation.
+I0913 19:40:56.425354 26750 net.cpp:219] inception_5a/5x5 does not need backward computation.
+I0913 19:40:56.425360 26750 net.cpp:219] inception_5a/relu_5x5_reduce does not need backward computation.
+I0913 19:40:56.425365 26750 net.cpp:219] inception_5a/5x5_reduce does not need backward computation.
+I0913 19:40:56.425370 26750 net.cpp:219] inception_5a/relu_3x3 does not need backward computation.
+I0913 19:40:56.425375 26750 net.cpp:219] inception_5a/3x3 does not need backward computation.
+I0913 19:40:56.425379 26750 net.cpp:219] inception_5a/relu_3x3_reduce does not need backward computation.
+I0913 19:40:56.425384 26750 net.cpp:219] inception_5a/3x3_reduce does not need backward computation.
+I0913 19:40:56.425390 26750 net.cpp:219] inception_5a/relu_1x1 does not need backward computation.
+I0913 19:40:56.425393 26750 net.cpp:219] inception_5a/1x1 does not need backward computation.
+I0913 19:40:56.425398 26750 net.cpp:219] pool4/3x3_s2_pool4/3x3_s2_0_split does not need backward computation.
+I0913 19:40:56.425403 26750 net.cpp:219] pool4/3x3_s2 does not need backward computation.
+I0913 19:40:56.425408 26750 net.cpp:219] inception_4e/output does not need backward computation.
+I0913 19:40:56.425415 26750 net.cpp:219] inception_4e/relu_pool_proj does not need backward computation.
+I0913 19:40:56.425418 26750 net.cpp:219] inception_4e/pool_proj does not need backward computation.
+I0913 19:40:56.425423 26750 net.cpp:219] inception_4e/pool does not need backward computation.
+I0913 19:40:56.425428 26750 net.cpp:219] inception_4e/relu_5x5 does not need backward computation.
+I0913 19:40:56.425432 26750 net.cpp:219] inception_4e/5x5 does not need backward computation.
+I0913 19:40:56.425436 26750 net.cpp:219] inception_4e/relu_5x5_reduce does not need backward computation.
+I0913 19:40:56.425441 26750 net.cpp:219] inception_4e/5x5_reduce does not need backward computation.
+I0913 19:40:56.425446 26750 net.cpp:219] inception_4e/relu_3x3 does not need backward computation.
+I0913 19:40:56.425451 26750 net.cpp:219] inception_4e/3x3 does not need backward computation.
+I0913 19:40:56.425456 26750 net.cpp:219] inception_4e/relu_3x3_reduce does not need backward computation.
+I0913 19:40:56.425459 26750 net.cpp:219] inception_4e/3x3_reduce does not need backward computation.
+I0913 19:40:56.425464 26750 net.cpp:219] inception_4e/relu_1x1 does not need backward computation.
+I0913 19:40:56.425468 26750 net.cpp:219] inception_4e/1x1 does not need backward computation.
+I0913 19:40:56.425477 26750 net.cpp:219] inception_4d/output_inception_4d/output_0_split does not need backward computation.
+I0913 19:40:56.425482 26750 net.cpp:219] inception_4d/output does not need backward computation.
+I0913 19:40:56.425488 26750 net.cpp:219] inception_4d/relu_pool_proj does not need backward computation.
+I0913 19:40:56.425493 26750 net.cpp:219] inception_4d/pool_proj does not need backward computation.
+I0913 19:40:56.425498 26750 net.cpp:219] inception_4d/pool does not need backward computation.
+I0913 19:40:56.425503 26750 net.cpp:219] inception_4d/relu_5x5 does not need backward computation.
+I0913 19:40:56.425508 26750 net.cpp:219] inception_4d/5x5 does not need backward computation.
+I0913 19:40:56.425513 26750 net.cpp:219] inception_4d/relu_5x5_reduce does not need backward computation.
+I0913 19:40:56.425516 26750 net.cpp:219] inception_4d/5x5_reduce does not need backward computation.
+I0913 19:40:56.425520 26750 net.cpp:219] inception_4d/relu_3x3 does not need backward computation.
+I0913 19:40:56.425525 26750 net.cpp:219] inception_4d/3x3 does not need backward computation.
+I0913 19:40:56.425530 26750 net.cpp:219] inception_4d/relu_3x3_reduce does not need backward computation.
+I0913 19:40:56.425534 26750 net.cpp:219] inception_4d/3x3_reduce does not need backward computation.
+I0913 19:40:56.425539 26750 net.cpp:219] inception_4d/relu_1x1 does not need backward computation.
+I0913 19:40:56.425544 26750 net.cpp:219] inception_4d/1x1 does not need backward computation.
+I0913 19:40:56.425549 26750 net.cpp:219] inception_4c/output_inception_4c/output_0_split does not need backward computation.
+I0913 19:40:56.425552 26750 net.cpp:219] inception_4c/output does not need backward computation.
+I0913 19:40:56.425559 26750 net.cpp:219] inception_4c/relu_pool_proj does not need backward computation.
+I0913 19:40:56.425566 26750 net.cpp:219] inception_4c/pool_proj does not need backward computation.
+I0913 19:40:56.425571 26750 net.cpp:219] inception_4c/pool does not need backward computation.
+I0913 19:40:56.425576 26750 net.cpp:219] inception_4c/relu_5x5 does not need backward computation.
+I0913 19:40:56.425580 26750 net.cpp:219] inception_4c/5x5 does not need backward computation.
+I0913 19:40:56.425585 26750 net.cpp:219] inception_4c/relu_5x5_reduce does not need backward computation.
+I0913 19:40:56.425590 26750 net.cpp:219] inception_4c/5x5_reduce does not need backward computation.
+I0913 19:40:56.425595 26750 net.cpp:219] inception_4c/relu_3x3 does not need backward computation.
+I0913 19:40:56.425600 26750 net.cpp:219] inception_4c/3x3 does not need backward computation.
+I0913 19:40:56.425604 26750 net.cpp:219] inception_4c/relu_3x3_reduce does not need backward computation.
+I0913 19:40:56.425608 26750 net.cpp:219] inception_4c/3x3_reduce does not need backward computation.
+I0913 19:40:56.425613 26750 net.cpp:219] inception_4c/relu_1x1 does not need backward computation.
+I0913 19:40:56.425617 26750 net.cpp:219] inception_4c/1x1 does not need backward computation.
+I0913 19:40:56.425622 26750 net.cpp:219] inception_4b/output_inception_4b/output_0_split does not need backward computation.
+I0913 19:40:56.425627 26750 net.cpp:219] inception_4b/output does not need backward computation.
+I0913 19:40:56.425634 26750 net.cpp:219] inception_4b/relu_pool_proj does not need backward computation.
+I0913 19:40:56.425638 26750 net.cpp:219] inception_4b/pool_proj does not need backward computation.
+I0913 19:40:56.425643 26750 net.cpp:219] inception_4b/pool does not need backward computation.
+I0913 19:40:56.425648 26750 net.cpp:219] inception_4b/relu_5x5 does not need backward computation.
+I0913 19:40:56.425652 26750 net.cpp:219] inception_4b/5x5 does not need backward computation.
+I0913 19:40:56.425657 26750 net.cpp:219] inception_4b/relu_5x5_reduce does not need backward computation.
+I0913 19:40:56.425662 26750 net.cpp:219] inception_4b/5x5_reduce does not need backward computation.
+I0913 19:40:56.425667 26750 net.cpp:219] inception_4b/relu_3x3 does not need backward computation.
+I0913 19:40:56.425670 26750 net.cpp:219] inception_4b/3x3 does not need backward computation.
+I0913 19:40:56.425675 26750 net.cpp:219] inception_4b/relu_3x3_reduce does not need backward computation.
+I0913 19:40:56.425680 26750 net.cpp:219] inception_4b/3x3_reduce does not need backward computation.
+I0913 19:40:56.425685 26750 net.cpp:219] inception_4b/relu_1x1 does not need backward computation.
+I0913 19:40:56.425690 26750 net.cpp:219] inception_4b/1x1 does not need backward computation.
+I0913 19:40:56.425695 26750 net.cpp:219] inception_4a/output_inception_4a/output_0_split does not need backward computation.
+I0913 19:40:56.425700 26750 net.cpp:219] inception_4a/output does not need backward computation.
+I0913 19:40:56.425706 26750 net.cpp:219] inception_4a/relu_pool_proj does not need backward computation.
+I0913 19:40:56.425710 26750 net.cpp:219] inception_4a/pool_proj does not need backward computation.
+I0913 19:40:56.425715 26750 net.cpp:219] inception_4a/pool does not need backward computation.
+I0913 19:40:56.425720 26750 net.cpp:219] inception_4a/relu_5x5 does not need backward computation.
+I0913 19:40:56.425724 26750 net.cpp:219] inception_4a/5x5 does not need backward computation.
+I0913 19:40:56.425729 26750 net.cpp:219] inception_4a/relu_5x5_reduce does not need backward computation.
+I0913 19:40:56.425734 26750 net.cpp:219] inception_4a/5x5_reduce does not need backward computation.
+I0913 19:40:56.425740 26750 net.cpp:219] inception_4a/relu_3x3 does not need backward computation.
+I0913 19:40:56.425743 26750 net.cpp:219] inception_4a/3x3 does not need backward computation.
+I0913 19:40:56.425748 26750 net.cpp:219] inception_4a/relu_3x3_reduce does not need backward computation.
+I0913 19:40:56.425752 26750 net.cpp:219] inception_4a/3x3_reduce does not need backward computation.
+I0913 19:40:56.425756 26750 net.cpp:219] inception_4a/relu_1x1 does not need backward computation.
+I0913 19:40:56.425760 26750 net.cpp:219] inception_4a/1x1 does not need backward computation.
+I0913 19:40:56.425766 26750 net.cpp:219] pool3/3x3_s2_pool3/3x3_s2_0_split does not need backward computation.
+I0913 19:40:56.425771 26750 net.cpp:219] pool3/3x3_s2 does not need backward computation.
+I0913 19:40:56.425776 26750 net.cpp:219] inception_3b/output does not need backward computation.
+I0913 19:40:56.425783 26750 net.cpp:219] inception_3b/relu_pool_proj does not need backward computation.
+I0913 19:40:56.425787 26750 net.cpp:219] inception_3b/pool_proj does not need backward computation.
+I0913 19:40:56.425792 26750 net.cpp:219] inception_3b/pool does not need backward computation.
+I0913 19:40:56.425797 26750 net.cpp:219] inception_3b/relu_5x5 does not need backward computation.
+I0913 19:40:56.425801 26750 net.cpp:219] inception_3b/5x5 does not need backward computation.
+I0913 19:40:56.425806 26750 net.cpp:219] inception_3b/relu_5x5_reduce does not need backward computation.
+I0913 19:40:56.425812 26750 net.cpp:219] inception_3b/5x5_reduce does not need backward computation.
+I0913 19:40:56.425817 26750 net.cpp:219] inception_3b/relu_3x3 does not need backward computation.
+I0913 19:40:56.425820 26750 net.cpp:219] inception_3b/3x3 does not need backward computation.
+I0913 19:40:56.425825 26750 net.cpp:219] inception_3b/relu_3x3_reduce does not need backward computation.
+I0913 19:40:56.425829 26750 net.cpp:219] inception_3b/3x3_reduce does not need backward computation.
+I0913 19:40:56.425834 26750 net.cpp:219] inception_3b/relu_1x1 does not need backward computation.
+I0913 19:40:56.425838 26750 net.cpp:219] inception_3b/1x1 does not need backward computation.
+I0913 19:40:56.425843 26750 net.cpp:219] inception_3a/output_inception_3a/output_0_split does not need backward computation.
+I0913 19:40:56.425848 26750 net.cpp:219] inception_3a/output does not need backward computation.
+I0913 19:40:56.425854 26750 net.cpp:219] inception_3a/relu_pool_proj does not need backward computation.
+I0913 19:40:56.425858 26750 net.cpp:219] inception_3a/pool_proj does not need backward computation.
+I0913 19:40:56.425863 26750 net.cpp:219] inception_3a/pool does not need backward computation.
+I0913 19:40:56.425875 26750 net.cpp:219] inception_3a/relu_5x5 does not need backward computation.
+I0913 19:40:56.425880 26750 net.cpp:219] inception_3a/5x5 does not need backward computation.
+I0913 19:40:56.425886 26750 net.cpp:219] inception_3a/relu_5x5_reduce does not need backward computation.
+I0913 19:40:56.425891 26750 net.cpp:219] inception_3a/5x5_reduce does not need backward computation.
+I0913 19:40:56.425896 26750 net.cpp:219] inception_3a/relu_3x3 does not need backward computation.
+I0913 19:40:56.425900 26750 net.cpp:219] inception_3a/3x3 does not need backward computation.
+I0913 19:40:56.425905 26750 net.cpp:219] inception_3a/relu_3x3_reduce does not need backward computation.
+I0913 19:40:56.425910 26750 net.cpp:219] inception_3a/3x3_reduce does not need backward computation.
+I0913 19:40:56.425915 26750 net.cpp:219] inception_3a/relu_1x1 does not need backward computation.
+I0913 19:40:56.425920 26750 net.cpp:219] inception_3a/1x1 does not need backward computation.
+I0913 19:40:56.425925 26750 net.cpp:219] pool2/3x3_s2_pool2/3x3_s2_0_split does not need backward computation.
+I0913 19:40:56.425930 26750 net.cpp:219] pool2/3x3_s2 does not need backward computation.
+I0913 19:40:56.425935 26750 net.cpp:219] conv2/norm2 does not need backward computation.
+I0913 19:40:56.425940 26750 net.cpp:219] conv2/relu_3x3 does not need backward computation.
+I0913 19:40:56.425943 26750 net.cpp:219] conv2/3x3 does not need backward computation.
+I0913 19:40:56.425948 26750 net.cpp:219] conv2/relu_3x3_reduce does not need backward computation.
+I0913 19:40:56.425953 26750 net.cpp:219] conv2/3x3_reduce does not need backward computation.
+I0913 19:40:56.425957 26750 net.cpp:219] pool1/norm1 does not need backward computation.
+I0913 19:40:56.425961 26750 net.cpp:219] pool1/3x3_s2 does not need backward computation.
+I0913 19:40:56.425966 26750 net.cpp:219] conv1/relu_7x7 does not need backward computation.
+I0913 19:40:56.425971 26750 net.cpp:219] conv1/7x7_s2 does not need backward computation.
+I0913 19:40:56.425976 26750 net.cpp:219] data does not need backward computation.
+I0913 19:40:56.425978 26750 net.cpp:261] This network produces output prob
+I0913 19:40:56.426105 26750 net.cpp:274] Network initialization done.
+I0913 19:40:56.478615 26750 upgrade_proto.cpp:52] Attempting to upgrade input file specified using deprecated V1LayerParameter: /home/peifeng/work/run/storm102/data/workers/f0dcdc23-6a40-4a9b-83d6-4e05c63f557d/tmp/cvld6786429338636435377/bvlc_googlenet.caffemodel
+I0913 19:40:56.568223 26750 upgrade_proto.cpp:60] Successfully upgraded file specified using deprecated V1LayerParameter
+I0913 19:40:56.568464 26750 net.cpp:752] Ignoring source layer label_data_1_split
+I0913 19:40:56.569368 26750 net.cpp:752] Ignoring source layer loss1/ave_pool
+I0913 19:40:56.569380 26750 net.cpp:752] Ignoring source layer loss1/conv
+I0913 19:40:56.569385 26750 net.cpp:752] Ignoring source layer loss1/relu_conv
+I0913 19:40:56.569388 26750 net.cpp:752] Ignoring source layer loss1/fc
+I0913 19:40:56.569392 26750 net.cpp:752] Ignoring source layer loss1/relu_fc
+I0913 19:40:56.569396 26750 net.cpp:752] Ignoring source layer loss1/drop_fc
+I0913 19:40:56.569401 26750 net.cpp:752] Ignoring source layer loss1/classifier
+I0913 19:40:56.569404 26750 net.cpp:752] Ignoring source layer loss1/loss
+I0913 19:40:56.570636 26750 net.cpp:752] Ignoring source layer loss2/ave_pool
+I0913 19:40:56.570663 26750 net.cpp:752] Ignoring source layer loss2/conv
+I0913 19:40:56.570667 26750 net.cpp:752] Ignoring source layer loss2/relu_conv
+I0913 19:40:56.570672 26750 net.cpp:752] Ignoring source layer loss2/fc
+I0913 19:40:56.570675 26750 net.cpp:752] Ignoring source layer loss2/relu_fc
+I0913 19:40:56.570679 26750 net.cpp:752] Ignoring source layer loss2/drop_fc
+I0913 19:40:56.570684 26750 net.cpp:752] Ignoring source layer loss2/classifier
+I0913 19:40:56.570688 26750 net.cpp:752] Ignoring source layer loss2/loss
+I0913 19:40:56.574059 26750 net.cpp:752] Ignoring source layer loss3/loss3
+Loading the model + trained: 4609.63ms
+Using cv::Size and some other stuff: 0.116ms
+Loading the mean file: 1076.89ms

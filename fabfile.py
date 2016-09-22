@@ -157,19 +157,25 @@ def main_host(configuration):
         configuration = 'all'
     if configuration == 'all':
         return '{}@clarity26'.format(username)
+    elif configuration == 'hetero':
+        return '{}@clarity24'.format(username)
     else:
         return '{}@{}'.format(username, configuration)
+
 
 def host_list(configuration):
     """Get host list from configuration"""
     username = 'peifeng'
-    l = ['{}@clarity25', '{}@clarity26']
+    formatted = lambda l: ['{}@clarity{}'.format(username, s) for s in l]
     if configuration is None:
         configuration = 'all'
     if configuration == 'all':
-        return [s.format(username) for s in l]
+        return formatted([25, 26])
+    elif configuration == 'hetero':
+        return formatted([24, 26])
     else:
         return [main_host(configuration)]
+
 
 @contextlib.contextmanager
 def tmux(session, cwd=None, destroy=False, runner=None):
@@ -361,7 +367,7 @@ def build(force=None):
     with cd(project_dir):
         run('git pull')
         with cd('stormcv'):
-            run('./gradlew install')
+            run('mvn install')
         with cd('stormcv-deploy'):
             run('mvn package')
 
@@ -606,12 +612,6 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
         if not topology.startswith('nl'):
             topology = 'nl.tno.stormcv.deploy.' + topology
 
-
-    if cpu is None:
-        cpu = max_cpu_cores
-    else:
-        cpu = int(cpu)
-
     least = int(least)
 
     topology_id = topology_class2id[topology]
@@ -638,6 +638,7 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
         execute(storm, action='start', configuration=configuration)
         execute(cpu_monitor, action='start', hosts=host_list(configuration))
 
+    wait_with_progress(20, 'Wait for Storm to be fully started', resolution=2)
     execute(storm_submit, topology, *args, host=main_host(configuration))
 
     wait_with_progress(60 * least, 'Running', resolution=2)
@@ -698,6 +699,36 @@ def batch_run():
 
 
 @task
+def batch_run_hetero():
+    """Batch run"""
+    configuration = 'hetero'
+    topology = ['BatchDNNTopology']
+    cores = [None]
+    args = [
+        'num-workers=2',
+        'fetcher=image',
+        'use-caffe=1',
+        ['use-gpu=0'],
+        ['batch-size=1'],
+        ['fps=30'],
+        'auto-sleep=0',
+        'msg-timeout=1000000',
+        'max-spout-pending=10000',
+        ['fat=5',],
+        'drawer=3'
+        #'drawer=1'
+    ]
+
+    for idx, arg in enumerate(args):
+        if not isinstance(arg, list):
+            args[idx] = [arg]
+
+    for combo in itertools.product(topology, cores, *args):
+        print('combo: ', combo)
+        execute(run_exp, configuration, least=2, *combo)
+
+
+@task
 def batch_run_gpu():
     """Batch run"""
     configuration = 'clarity24'
@@ -710,7 +741,7 @@ def batch_run_gpu():
         ['use-gpu=1'],
         #['batch-size=1', 'batch-size=2', 'batch-size=3', 'batch-size=4', 'batch-size=5'],
         #['batch-size=1', 'batch-size=2' ],
-        ['batch-size=1'],
+        ['batch-size=1', 'batch-size=1'],
         #['fps=15', 'fps=20', 'fps=25', 'fps=30', 'fps=45'],
         ['fps=15', 'fps=15', 'fps=15', 'fps=15', 'fps=15'],
         #['fps=3', 'fps=4',],
@@ -719,7 +750,7 @@ def batch_run_gpu():
         'auto-sleep=0',
         'msg-timeout=1000000',
         'max-spout-pending=10000',
-        ['scale=3'],
+        #['scale=3'],
         #['scale=1'],
         #['fat=27', 'fat=28', 'fat=29', 'fat=30', 'fat=31', 'fat=32'],
         #['fat=40', 'fat=50', 'fat=60', 'fat=80', 'fat=100'],
@@ -745,7 +776,7 @@ def batch_run_cap():
     """Batch run"""
     configuration = 'clarity24'
     topology = ['CaptionerTopology']
-    cores = [24]
+    cores = [None]
     args = [
         'num-workers=1',
         'fetcher=image',
@@ -753,17 +784,16 @@ def batch_run_cap():
         ['cap-use-gpu=1'],
 
         [
-         'group-size=10', 'group-size=10', 'group-size=10',
-         'group-size=10', 'group-size=10', 'group-size=10',
-         'group-size=10', 'group-size=10', 'group-size=10',
-         'group-size=10',
+         #'group-size=15', 'group-size=15', 'group-size=15',
+         #'group-size=15', 'group-size=15', 'group-size=15',
+         'group-size=60',
          ],
         #'min-group-size=10',
         #'max-group-size=200',
 
         #['fps=15', 'fps=20', 'fps=25'],
         #['fps=3', 'fps=4',],
-        ['fps=20'],
+        ['fps=20', 'fps=30', 'fps=40'],
 
         'auto-sleep=0',
         'msg-timeout=1000000',
