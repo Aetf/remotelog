@@ -602,9 +602,9 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
         with hide('running', 'stdout', 'stderr'):
             sudo('echo good')
 
-    if not execute(uptodate, local_project, host='localhost')['localhost']:
-        utils.error('Your working copy is not clean, which cannot be fetched by remote server')
-        return
+    #if not execute(uptodate, local_project, host='localhost')['localhost']:
+    #    utils.error('Your working copy is not clean, which cannot be fetched by remote server')
+    #    return
 
     if topology is None:
         topology = 'nl.tno.stormcv.deploy.SpoutOnly'
