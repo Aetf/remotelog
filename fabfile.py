@@ -108,6 +108,7 @@ input_video = [
     #'/home/peifeng/work/data/Vid_I_person_crossing.avi',
     '/home/peifeng/work/data/The_Nut_Job_trailer.mp4',
     '/home/peifeng/work/data/The_Nut_Job_trailer.mp4',
+    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4',
 ]
 
 # runtime path for zookeeper
