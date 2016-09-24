@@ -511,6 +511,8 @@ def pull_log_per_node(log_dir):
                   local_dir=per_machine_dir, upload=False)
     rsync_project(remote_dir=storm_path + '/logs/log.cpu',
                   local_dir=per_machine_dir, upload=False)
+    rsync_project(remote_dir=storm_path + '/logs/log.gpu',
+                  local_dir=per_machine_dir, upload=False)
 
 
 @task
@@ -533,8 +535,11 @@ def cpu_monitor(action=None):
     with tmux('exp') as ts:
         if action == 'start':
             ts.run('python ' + accounting_py + ' ' + storm_path + '/logs', new_window='cpu')
+            ts.run('nvidia-smi dmon -i 3,4 -o DT -f' + ' ' + storm_path + '/logs/log.gpu',
+                    new_window='gpu')
         elif action == 'stop':
             ts.kill(window='cpu')
+            ts.kill(window='gpu')
         else:
             print('unknown action: {}'.format(action))
 
