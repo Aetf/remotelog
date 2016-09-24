@@ -760,6 +760,7 @@ def batch_run_gpu():
         #['fat=80', 'fat=58', 'fat=68'],
         #['fat=80', 'fat=1005],
         ['fat=1',],
+        'timer=nano',
         'drawer=3'
         #'drawer=1'
     ]
