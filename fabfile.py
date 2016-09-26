@@ -115,7 +115,7 @@ input_video = [
     '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 7
     '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 8
     '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 9
-    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 10
+    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 10
 ]
 
 # runtime path for zookeeper
@@ -814,8 +814,8 @@ def batch_run_cap():
         #'max-group-size=200',
 
         #['fps=5', 'fps=10', 'fps=15'],
-        #['fps=3', 'fps=4',],
-        ['fps=20', 'fps=30', 'fps=40', 'fps=50', 'fps=60'],
+        ['fps=60',],
+        #['fps=20', 'fps=30', 'fps=40', 'fps=50', 'fps=60'],
 
         'auto-sleep=0',
         'msg-timeout=1000000',
