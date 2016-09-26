@@ -106,9 +106,16 @@ input_image = [
 input_video = [
     #'/home/peifeng/work/data/Vid_A_ball.avi',
     #'/home/peifeng/work/data/Vid_I_person_crossing.avi',
-    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4',
-    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4',
-    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4',
+    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 1
+    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 2
+    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 3
+    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 4
+    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 5
+    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 6
+    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 7
+    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 8
+    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 9
+    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 10
 ]
 
 # runtime path for zookeeper
@@ -125,6 +132,9 @@ max_cpu_cores = {
 
 #saved_params_file = 'saved_params.pickle'
 saved_params_file = None
+
+# Skip cpu limit
+skip_limit_cpu = True
 
 # ====================================================================
 # Topology Info Configurations
@@ -605,9 +615,10 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
     """Run experiment"""
 
     # save sudo password
-    with settings(host_string=main_host(configuration)):
-        with hide('running', 'stdout', 'stderr'):
-            sudo('echo good')
+    if not skip_limit_cpu:
+        with settings(host_string=main_host(configuration)):
+            with hide('running', 'stdout', 'stderr'):
+                sudo('echo good')
 
     #if not execute(uptodate, local_project, host='localhost')['localhost']:
     #    utils.error('Your working copy is not clean, which cannot be fetched by remote server')
@@ -640,7 +651,8 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
     execute(build, host=main_host(configuration))
 
     with hide('running', 'stdout'):
-        execute(limit_cpu, cpu, hosts=host_list(configuration))
+        if not skip_limit_cpu:
+            execute(limit_cpu, cpu, hosts=host_list(configuration))
 
         execute(storm, action='start', configuration=configuration)
         execute(cpu_monitor, action='start', hosts=host_list(configuration))
@@ -653,7 +665,8 @@ def run_exp(configuration=None, topology=None, cpu=None, *args, least=5):
     with hide('stdout'):
         execute(kill_exp, topology_id=topology_id, wait=30,
                 configuration=configuration)
-        execute(limit_cpu, hosts=host_list(configuration))
+        if not skip_limit_cpu:
+            execute(limit_cpu, hosts=host_list(configuration))
 
     if saved_params_file is not None:
         with open(saved_params_file, 'wb') as f:
