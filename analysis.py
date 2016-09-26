@@ -17,10 +17,9 @@ import seaborn as sns
 from scipy.stats import f_oneway, linregress
 
 global_debug = False
-global_skipOp = True
-global_skipAutoFix = False
 global_perBatch = False
-global_storm102 = True
+global_skipAutoFix = False
+global_skipOp = True
 
 topology_stage_map = {
     'nl.tno.stormcv.deploy.DNNTopology':
@@ -55,6 +54,10 @@ stages2idx = {}
 full_stages = []
 categories = []
 cat2idx = {}
+
+convert_batch = False
+storm102 = True
+skipOp = True
 
 
 def last_stage():
@@ -94,25 +97,35 @@ def frame_time_for(frame, evt, stage, trial=0):
     return -1
 
 
+def range_filter(seq_range):
+    """Return a frame_filter func that selects frames/logs in seq_range"""
+    def ff(tidy_logs, frames, clean_frames):
+        t = [per_frame_logs for per_frame_logs in tidy_logs if per_frame_logs[0]['seq'] in seq_range]
+        f = [frame for frame in frames if frame['seq'] in seq_range]
+        cf = [frame for frame in clean_frames if frame['seq'] in seq_range]
+        return t, f, cf
+    return ff
+
+
 def update_stage_info(topology_class, log_version=1):
     """Recompute stage info"""
-    global stages, stages2idx, full_stages, categories, cat2idx, global_skipOp, global_perBatch, global_storm102
+    global stages, stages2idx, full_stages, categories, cat2idx, skipOp, storm102, convert_batch
     new_stages = topology_stage_map[topology_class]
     stages = copy(new_stages)
 
     if log_version < 2:
-        print('WARNING: log version < 2 (before 2016-7-18), remove batcher stage',
+        print('INFO: log version < 2 (before 2016-7-18), remove batcher stage',
               file=sys.stderr)
         for s in new_stages:
             if s.endswith('batcher'):
                 stages.remove(s)
     if log_version < 3:
-        print('WARNING: log version < 3 (before 2016-9-1), use storm102 log structure',
+        print('INFO: log version < 3 (before 2016-9-1), use storm102 log structure',
               file=sys.stderr)
-        global_storm102 = False
+        storm102 = False
 
     if log_version >= 4:
-        print('WARNING: log version >= 4 (after 2016-9-14), remove scale stage from topologies',
+        print('INFO: log version >= 4 (after 2016-9-14), remove scale stage from topologies',
               file=sys.stderr)
         if topology_class in ['nl.tno.stormcv.deploy.DNNTopology',
                               'nl.tno.stormcv.deploy.BatchDNNTopology',
@@ -138,16 +151,15 @@ def update_stage_info(topology_class, log_version=1):
     categories = ['waiting'] + full_stages + ['finished', 'failed']
     cat2idx = {categories[idx]: idx for idx in range(0, len(categories))}
 
-    if topology_class == 'nl.tno.stormcv.deploy.DNNTopology':
-        #global_skipOp = False
-        global_skipOp = True
+    if topology_class == 'nl.tno.stormcv.deploy.DNNTopology' and not global_skipOp:
+        skipOp = False
     else:
-        global_skipOp = True
+        skipOp = True
 
-    if topology_class == 'nl.tno.stormcv.deploy.CaptionerTopology':
-        global_perBatch = True
+    if topology_class == 'nl.tno.stormcv.deploy.CaptionerTopology' and global_perBatch:
+        convert_batch = True
     else:
-        global_perBatch = False
+        convert_batch = False
 
 update_stage_info('nl.tno.stormcv.deploy.DNNTopology', 3)
 
@@ -169,7 +181,7 @@ def read_log(filename, pattern):
 
 def correct_log_type(logs):
     """Correct log entry data types"""
-    if global_skipOp:
+    if skipOp:
         logs = [log for log in logs
                 if log['evt'] != 'OpBegin' and log['evt'] != 'OpEnd']
 
@@ -403,7 +415,7 @@ def collect_log(log_dir=None):
     if log_dir is None:
         log_dir = _globpattern()
     for machine in next(os.walk(log_dir))[1]:
-        if global_storm102:
+        if storm102:
             print('the glob pattern is', os.path.join(log_dir, machine, '*', 'worker.log'))
             files = glob.glob(os.path.join(log_dir, machine, '*', 'worker.log'))
         else:
@@ -568,7 +580,13 @@ def compute_latency(frames):
                     latencies[stage_name].append(latency)
                     if stage_name == last_stage():
                         # The frame left the last stage, compute total latency
-                        latency = stamp - trial[0][2]
+                        # start from left spout
+                        if len(trial) <= 1:
+                            # the frame never left spout, which should not happen
+                            # when the code path execute to here, but just in case
+                            latency = 0
+                        else:
+                            latency = stamp - trial[1][2]
                         latencies['total'].append(latency)
                     last_stamp = stamp
                 elif evt == 'OpBegin':
@@ -600,7 +618,7 @@ def compute_latency(frames):
                 if st != 'spout' and st != 'ack' and not st.endswith('batcher'):
                     latencies['service'] += latencies[st]
         except KeyError as e:
-            # The frame doesn't go through all stages
+            # The frame didn't go through all stages
             del latencies['service']
         frame['latencies'] = latencies
 
@@ -986,7 +1004,7 @@ def post_process(streams, stream_id):
     compute_latency(clean_frames)
     latency_check(clean_frames)
     distributions = compute_stage_dist(tidy_logs)
-    if global_perBatch:
+    if convert_batch:
         # actually here the new clean_frames list represents a list of batches
         clean_frames = convert_to_batch(clean_frames)
     return tidy_logs, frames, clean_frames, distributions
@@ -997,16 +1015,19 @@ class exp_res(object):
         self.exp_name = exp_name
         if exp_name.find('/') != -1:
             cut = dt(2016, 7, 18)
-            cut2 = dt(2016,9,1)
+            cut2 = dt(2016, 9, 1)
+            cut3 = dt(2016, 9, 14)
             self.exp_date = dt.strptime(exp_name[:exp_name.find('/')], "%Y-%m-%d")
             if self.exp_date < cut:
                 self.log_version = 1
             elif self.exp_date < cut2:
                 self.log_version = 2
-            else:
+            elif self.exp_date < cut3:
                 self.log_version = 3
+            else:
+                self.log_version = 4
         else:
-            self.log_version = 3
+            self.log_version = 4
 
         log_dir = 'archive/{}'.format(exp_name)
         self._load_params(os.path.join(log_dir, 'params.txt'))
@@ -1026,7 +1047,8 @@ class exp_res(object):
                 'tidy_logs': tidy_logs,
                 'frames': frames,
                 'clean_frames': clean_frames,
-                'distributions': distributions
+                'distributions': distributions,
+                'frame_filter': None
             }
         self.select_stream(lagecy_stream_id)
 
@@ -1037,6 +1059,7 @@ class exp_res(object):
         self.params['nodes'] = nodes
 
         self.seqs = sorted([f['seq'] for f in self.clean_frames])
+        self.filters = None
 
     def __str__(self):
         """Print"""
@@ -1140,10 +1163,31 @@ class exp_res(object):
 
     def select_stream(self, stream_id):
         """Select current stream"""
+        self.current_stream_id = stream_id
+        self.params['current_stream_id'] = stream_id
+        self.distributions = self.streams[stream_id]['distributions']
+
         self.tidy_logs = self.streams[stream_id]['tidy_logs']
         self.frames = self.streams[stream_id]['frames']
         self.clean_frames = self.streams[stream_id]['clean_frames']
-        self.distributions = self.streams[stream_id]['distributions']
+
+        frame_filter = self.streams[stream_id]['frame_filter']
+        if frame_filter is not None:
+            (self.tidy_logs,
+             self.frames,
+             self.clean_frames) = frame_filter(self.tidy_logs,
+                                               self.frames,
+                                               self.clean_frames)
+
+    def set_frame_filter(self, func, stream_id = None):
+        if stream_id is None:
+            stream_id = self.current_stream_id
+
+        self.streams[stream_id]['frame_filter'] = func
+
+        # re-select current stream, in case we are changing 
+        # current stream frame filter
+        self.select_stream(self.current_stream_id)
 
     def show_log(self, seq=None):
         """Print raw log entries"""
@@ -1237,15 +1281,31 @@ class exp_res(object):
         p.tight_layout()
         return p
 
-    def avg_fps(self, stage='spout', evt='Entering', trim=False, limit=None):
+    def avg_fps(self, stage='spout', evt='Entering', trim=False, limit=None, all_stream=False):
         """Calculate average fps"""
         self._ensure_stage_info()
-        fpses = compute_fps(self.tidy_logs, stage, evt)
-        if limit is not None:
-            fpses = fpses[:limit]
-        while trim and fpses[-1] == 0.0:
-            fpses.pop()
-        return (mean(fpses), len(fpses))
+        def calcfps():
+            fpses = compute_fps(self.tidy_logs, stage, evt)
+            if limit is not None:
+                fpses = fpses[:limit]
+            while trim and fpses[-1] == 0.0:
+                fpses.pop()
+            return fpses
+
+        if all_stream:
+            current = self.current_stream_id
+            totalfps = []
+            totallen = 0
+            for sid in self.streams.keys():
+                self.select_stream(sid)
+                fpses = calcfps()
+                totalfps.append(mean(fpses))
+                totallen += len(fpses)
+            self.select_stream(current)
+            return (mean(totalfps), totallen)
+        else:
+            fpses = calcfps()
+            return (mean(fpses), len(fpses))
 
     def avg_latency(self, which=None, useLinregress=True, detail=False):
         """Calculate average latency"""
@@ -1328,12 +1388,13 @@ class cross_res(object):
         p.set_ylabel('Latency (ms)')
         return p, df
 
-    def fps(self, points=None, x=None, **kwargs):
+    def fps(self, points=None, x=None, all_stream=False, **kwargs):
         """Average fps"""
         if points is None:
             points = [('Entering', 'spout'), ('Ack', 'ack')]
         df = pd.DataFrame({
-            '{} {}'.format(evt, stage): pd.Series([exp.avg_fps(stage, evt, trim=True)[0]
+            '{} {}'.format(evt, stage): pd.Series([exp.avg_fps(stage, evt,
+                                                               trim=True, all_stream=all_stream)[0]
                                                    for exp in self.exps])
             for evt, stage in points
         })
