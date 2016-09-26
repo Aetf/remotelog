@@ -106,16 +106,16 @@ input_image = [
 input_video = [
     #'/home/peifeng/work/data/Vid_A_ball.avi',
     #'/home/peifeng/work/data/Vid_I_person_crossing.avi',
-    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 1
-    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 2
-    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 3
-    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 4
-    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 5
-    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 6
-    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 7
-    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 8
-    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 9
-    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 10
+    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 1
+    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 2
+    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 3
+    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 4
+    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 5
+    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 6
+    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 7
+    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 8
+    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 9
+    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 10
 ]
 
 # runtime path for zookeeper
@@ -532,7 +532,8 @@ def clean_log():
         'rm',
         '-rf',
         storm_path + '/logs/workers-artifacts',
-        storm_path + '/logs/log.cpu'
+        storm_path + '/logs/log.cpu',
+        storm_path + '/logs/log.gpu'
     ]
     run(' '.join(cmd))
 
