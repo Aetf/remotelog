@@ -58,6 +58,7 @@ cat2idx = {}
 convert_batch = False
 storm102 = True
 skipOp = True
+has_gpu_log = False
 
 
 def last_stage():
@@ -109,9 +110,15 @@ def range_filter(seq_range):
 
 def update_stage_info(topology_class, log_version=1):
     """Recompute stage info"""
-    global stages, stages2idx, full_stages, categories, cat2idx, skipOp, storm102, convert_batch
+    global stages, stages2idx, full_stages, categories, cat2idx, skipOp, storm102, convert_batch, has_gpu_log
     new_stages = topology_stage_map[topology_class]
     stages = copy(new_stages)
+
+    # initial flag values
+    convert_batch = False
+    storm102 = False
+    skipOp = True
+    has_gpu_log = False
 
     if log_version < 2:
         print('INFO: log version < 2 (before 2016-7-18), remove batcher stage',
@@ -119,11 +126,10 @@ def update_stage_info(topology_class, log_version=1):
         for s in new_stages:
             if s.endswith('batcher'):
                 stages.remove(s)
-    if log_version < 3:
-        print('INFO: log version < 3 (before 2016-9-1), use storm102 log structure',
+    if log_version >= 3:
+        print('INFO: log version >= 3 (after 2016-9-1), use storm102 log structure',
               file=sys.stderr)
-        storm102 = False
-
+        storm102 = True
     if log_version >= 4:
         print('INFO: log version >= 4 (after 2016-9-14), remove scale stage from topologies',
               file=sys.stderr)
@@ -134,6 +140,9 @@ def update_stage_info(topology_class, log_version=1):
                               'nl.tno.stormcv.deploy.ObjTrackingTopology',
                               'nl.tno.stormcv.deploy.CaptionerTopology']:
             stages.remove('scale')
+    if log_version >= 5:
+        print('INFO: log version >= 5 (after 2016-9-25), enable gpu log', file=sys.stderr)
+        has_gpu_log = True
 
     stages2idx = {stages[idx]: idx for idx in range(0, len(stages))}
 
@@ -161,7 +170,7 @@ def update_stage_info(topology_class, log_version=1):
     else:
         convert_batch = False
 
-update_stage_info('nl.tno.stormcv.deploy.DNNTopology', 3)
+update_stage_info('nl.tno.stormcv.deploy.DNNTopology', 5)
 
 
 globpattern = None
@@ -402,6 +411,14 @@ def load_cpu(filename):
     return cpu
 
 
+def load_gpu(filename):
+    """Load gpu utilization data"""
+    header_names = ['Date', 'Time', 'GPU ID', 'pwr', 'temp',
+                    'sm', 'mem', 'enc', 'dec', 'mclk', 'pclk']
+    df = pd.read_csv(filename, header=None, names=header_names, delim_whitespace=True, comment='#')
+    return df.to_dict('records')
+
+
 def collect_log(log_dir=None):
     """Collect log from files"""
     pttn = re.compile(r'^.+RequestID: (?P<req>[0-9-]+) StreamID: (?P<id>[^ ]+)'
@@ -412,6 +429,7 @@ def collect_log(log_dir=None):
                       r'( Size: (?P<size>\d+))?$')
     logs = []
     cpus = {}
+    gpus = {}
     if log_dir is None:
         log_dir = _globpattern()
     for machine in next(os.walk(log_dir))[1]:
@@ -432,6 +450,11 @@ def collect_log(log_dir=None):
         print('Collect cpu log from', cpu_log, file=sys.stderr)
         cpus[machine] = load_cpu(cpu_log)
 
+        if has_gpu_log:
+            gpu_log = os.path.join(log_dir, machine, 'log.gpu')
+            print('Collect cpu log from', gpu_log, file=sys.stderr)
+            gpus[machine] = load_gpu(gpu_log)
+
     logs = correct_log_type(logs)
     streams_log = group_by(logs, 'id')
 
@@ -451,7 +474,7 @@ def collect_log(log_dir=None):
 
     print('Auto fixed cross stage timming issues for {} log entries'.format(counter),
           file=sys.stderr)
-    return streams, cpus, logs
+    return streams, cpus, gpus, logs
 
 
 def extract_frames(tidy_logs):
@@ -986,14 +1009,14 @@ def run(log_dir=None):
     #                  r' (?P<evt>\w+) (?P<stage>\w+):' +
     #                  r' (?P<stamp>\d+)' +
     #                  r'( \(latency (?P<latency>\d+)\))?$')
-    streams, cpus, raw_logs = collect_log(log_dir)
+    streams, cpus, gpus, raw_logs = collect_log(log_dir)
     
     mpl.rcParams['figure.dpi'] = 193
     mpl.rcParams['axes.formatter.useoffset'] = False
     sns.plt.ion()
     sns.set_style('whitegrid')
 
-    return streams, cpus, raw_logs
+    return streams, cpus, gpus, raw_logs
 
 def post_process(streams, stream_id):
     """Post process log for a stream"""
@@ -1017,6 +1040,7 @@ class exp_res(object):
             cut = dt(2016, 7, 18)
             cut2 = dt(2016, 9, 1)
             cut3 = dt(2016, 9, 14)
+            cut4 = dt(2016, 9, 25)
             self.exp_date = dt.strptime(exp_name[:exp_name.find('/')], "%Y-%m-%d")
             if self.exp_date < cut:
                 self.log_version = 1
@@ -1024,10 +1048,12 @@ class exp_res(object):
                 self.log_version = 2
             elif self.exp_date < cut3:
                 self.log_version = 3
-            else:
+            elif self.exp_date < cut4:
                 self.log_version = 4
+            else:
+                self.log_version = 5
         else:
-            self.log_version = 4
+            self.log_version = 5
 
         log_dir = 'archive/{}'.format(exp_name)
         self._load_params(os.path.join(log_dir, 'params.txt'))
@@ -1037,7 +1063,7 @@ class exp_res(object):
 
         lagecy_stream_id = None
         self.streams = {}
-        streams_logs, self.cpus, self.raw_logs = run(log_dir)
+        streams_logs, self.cpus, self.gpus, self.raw_logs = run(log_dir)
         for stream_id, per_stream_tidy_log in streams_logs.items():
             if lagecy_stream_id is None:
                 lagecy_stream_id = stream_id
@@ -1074,21 +1100,21 @@ class exp_res(object):
     def _topology(self):
         """A string repr of the topology"""
         if 'fat_features' in self.stages:
-            return '{scale}+{fat}+{drawer}'.format(**self.params)
+            return '{fat}+{drawer}'.format(**self.params)
         elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.BatchDNNTopology':
-            return '{scale}+{fat}+{drawer}'.format(**self.params)
+            return '{fat}+{drawer}'.format(**self.params)
         elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.SpoutOnly':
             return '1+1'
         elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.SplitDNNTopology':
-            return '{scale}+{facedetect}+{dnnforward}+{dnnclassify}+{drawer}'.format(**self.params)
+            return '{facedetect}+{dnnforward}+{dnnclassify}+{drawer}'.format(**self.params)
         elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.ObjTrackingTopology':
-            return '{scale}+1+{drawer}'.format(**self.params)
+            return '1+{drawer}'.format(**self.params)
         elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.LoopTopology':
             return '{scale}+1+{drawer}'.format(**self.params)
         elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.E3_MultipleFeaturesTopology':
-            return '{scale}+{face}+{sift}+1+{drawer}'.format(**self.params)
+            return '{face}+{sift}+1+{drawer}'.format(**self.params)
         elif self.params['topology_class'] == 'nl.tno.stormcv.deploy.CaptionerTopology':
-            return '{scale}+{vgg}+1+{captioner}'.format(**self.params)
+            return '{vgg}+1+{captioner}'.format(**self.params)
         else:
             return 'unknown'
 
@@ -1280,6 +1306,33 @@ class exp_res(object):
         p.canvas.set_window_title('Exp: {}'.format(self.exp_name))
         p.tight_layout()
         return p
+
+    def avg_cpu(self, node=None, which=None, rg=None):
+        self._ensure_stage_info()
+        if which is None:
+            which = 'average'
+        if node is None:
+            node = list(self.cpus.keys())[0]
+
+        dfcpu = pd.DataFrame.from_records(self.cpus[node], index='timestamp')
+
+        def predict(index):
+            if rg is None:
+                return True
+            lb, ub = rg
+            return (index >= lb) & (index < ub)
+
+        return dfcpu.loc[predict(dfcpu.index)][which].mean()
+
+    def avg_gpu(self, which, col, node=None):
+        self._ensure_stage_info()
+        if node is None:
+            node = list(self.gpus.keys())[0]
+
+        dfgpu = pd.DataFrame.from_records(self.gpus[node], index=['Date', 'Time'])
+        dfgpu = dfgpu.loc[dfgpu['GPU ID'] == which]
+        return dfgpu[col].mean()
+
 
     def avg_fps(self, stage='spout', evt='Entering', trim=False, limit=None, all_stream=False):
         """Calculate average fps"""
