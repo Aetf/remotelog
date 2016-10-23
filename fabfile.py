@@ -85,42 +85,41 @@ env.use_ssh_config = True
 # ====================================================================
 
 # path to VideoDB project on local machine
-local_project = '/home/peifeng/VideoDB'
+local_project = '/home/cc/VideoDB'
 # path to VideoDB project on remote server
-project_dir = '/home/peifeng/VideoDB'
+project_dir = '/home/cc/VideoDB'
 # path to a work directory on remote server
-work_dir = '/home/peifeng/work'
+work_dir = '/home/cc/work'
 
 # path to storm installation on remote server
-storm_path = '/home/peifeng/tools/storm102'
+storm_path = '/home/cc/tools/storm'
 # path to zookeeper installation on remote server
-zookeeper_path = '/home/peifeng/tools/zookeeper'
+zookeeper_path = '/home/cc/tools/zookeeper'
 # path to cpu accounting script on remote server
-accounting_py = '/home/peifeng/work/accounting.py'
+accounting_py = '/home/cc/work/accounting.py'
 
 # path to input files on remote server
 input_image = [
-    #'/home/peifeng/work/data/frame.320x240.jpg',
-    '/home/peifeng/work/data/frame.1080x1920.png',
+    #'/home/cc/work/data/frame.320x240.jpg',
+    '/home/cc/work/data/frame.1080x1920.png',
 ]
 input_video = [
-    #'/home/peifeng/work/data/Vid_A_ball.avi',
-    #'/home/peifeng/work/data/Vid_I_person_crossing.avi',
-    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 1
-    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 2
-    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 3
-    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 4
-    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 5
-    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 6
-    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 7
-    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 8
-    '/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 9
-    #'/home/peifeng/work/data/The_Nut_Job_trailer.mp4', # 10
+    #'/home/cc/work/data/Vid_A_ball.avi',
+    #'/home/cc/work/data/Vid_I_person_crossing.avi',
+    '/home/cc/work/data/The_Nut_Job_trailer.mp4', # 1
+    '/home/cc/work/data/The_Nut_Job_trailer.mp4', # 2
+    '/home/cc/work/data/The_Nut_Job_trailer.mp4', # 3
+    '/home/cc/work/data/The_Nut_Job_trailer.mp4', # 4
+    '/home/cc/work/data/The_Nut_Job_trailer.mp4', # 5
+    '/home/cc/work/data/The_Nut_Job_trailer.mp4', # 6
+    '/home/cc/work/data/The_Nut_Job_trailer.mp4', # 7
+    '/home/cc/work/data/The_Nut_Job_trailer.mp4', # 8
+    '/home/cc/work/data/The_Nut_Job_trailer.mp4', # 9
+    #'/home/cc/work/data/The_Nut_Job_trailer.mp4', # 10
 ]
 
 # runtime path for zookeeper
-runtime_dir = os.path.join(work_dir, 'run')
-zoo_cfg_dir = os.path.join(runtime_dir, 'zookeeper', 'conf')
+runtime_dir = '/tmp'
 zoo_log_dir = os.path.join(runtime_dir, 'zookeeper', 'data')
 
 # maximum cpu cores
@@ -128,6 +127,7 @@ max_cpu_cores = {
     'clarity24': 24,
     'clarity25': 32,
     'clarity26': 32,
+    'ccgpu': 48,
 }
 
 #saved_params_file = 'saved_params.pickle'
@@ -164,7 +164,7 @@ def wait_with_progress(max_sec, msg=None, resolution=1):
 
 def main_host(configuration):
     """Get main host from configuration"""
-    username = 'peifeng'
+    username = 'cc'
     if configuration is None:
         configuration = 'all'
     if configuration == 'all':
@@ -177,7 +177,7 @@ def main_host(configuration):
 
 def host_list(configuration):
     """Get host list from configuration"""
-    username = 'peifeng'
+    username = 'cc'
     formatted = lambda l: ['{}@clarity{}'.format(username, s) for s in l]
     if configuration is None:
         configuration = 'all'
@@ -389,8 +389,7 @@ def zookeeper(action=None):
     """Bring up zookeeper servers"""
     if action is None:
         action = 'start'
-    with shell_env(ZOOCFGDIR=zoo_cfg_dir,
-                   ZOO_LOG_DIR=zoo_log_dir):
+    with shell_env(ZOO_LOG_DIR=zoo_log_dir):
         run(zookeeper_path + '/bin/zkServer.sh ' + action)
 
 @task
