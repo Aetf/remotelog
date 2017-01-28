@@ -258,7 +258,8 @@ def tmux(session, cwd=None, destroy=False, runner=None):
             cwd = self.cwd
 
             cwd = cwd.replace("'", r"\'")
-            cmd = cmd.replace("'", r"\'")
+            #cmd = cmd.replace("'", r"\'")
+            cmd = cmd.replace("'", "'\"'\"'")
             return remote_run(self.patterns['cmd']
                               .format(wd=window, pane=pane, envvar=envvar, cwd=cwd, cmd=cmd))
 
