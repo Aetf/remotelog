@@ -1,0 +1,11 @@
+Smarter Storm Scheduler that is aware of available GPUs in the cluster, more suitable for real time video analysis kind of workloads
+
+Modern video analysis mostly use some kind of neural network, GPU
+Some latency constrains, in real-time, you can't batch everything to a large size,
+GPU is probably underutilized. This opens the chance to make two GPU task running on one GPU using MPS
+    - needs data support (Xiaowei) (MPS data)
+
+G-Storm models GPU as a whole unsplittable resource,
+- so each GPU task must take one GPU
+- each GPU task has to be CPU/GPU switchable, otherwise, there's only one possible assignment
+- pays no attention to how GPU scheduling works in OS, and simply putting two GPU tasks on a node with two GPUs can't gaurantee that each task gets one GPU
